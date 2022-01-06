@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><?eclipse version="3.0"?><!--
+--><plugin>
+  <extension point="org.eclipse.emf.ecore.generated_package">
+    <!-- @generated traffic -->
+    <package class="traffic.TrafficPackage" genModel="model/traffic.genmodel" uri="refinery-benchmark-viatracomparison.traffic"/>
+  </extension>
+  <extension id="refinery.benchmark.viatracomparison.vql.Queries" point="org.eclipse.viatra.query.runtime.queryspecification">
+    <group group="org.eclipse.viatra.query.runtime.extensibility.SingletonExtensionFactory:refinery.benchmark.viatracomparison.vql.Queries" id="refinery.benchmark.viatracomparison.vql.Queries">
+      <query-specification fqn="refinery.benchmark.viatracomparison.vql.closeCars"/>
+      <query-specification fqn="refinery.benchmark.viatracomparison.vql.hasFollowing"/>
+      <query-specification fqn="refinery.benchmark.viatracomparison.vql.hasPrevious"/>
+      <query-specification fqn="refinery.benchmark.viatracomparison.vql.carOnLane"/>
+      <query-specification fqn="refinery.benchmark.viatracomparison.vql.spawnCar"/>
+      <query-specification fqn="refinery.benchmark.viatracomparison.vql.despawnCar"/>
+      <query-specification fqn="refinery.benchmark.viatracomparison.vql.moveCar"/>
+    </group>
+  </extension>
+</plugin>

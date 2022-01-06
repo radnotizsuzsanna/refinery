@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="traffic" nsURI="refinery-benchmark-viatracomparison.traffic"
+    nsPrefix="refinery-benchmark-viatracomparison.traffic">
+  <eClassifiers xsi:type="ecore:EClass" name="TrafficSituation">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="lanes" upperBound="-1"
+        eType="#//Lane" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="cars" upperBound="-1" eType="#//Car"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Lane">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="following" upperBound="-1"
+        eType="#//Lane"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="left" eType="#//Lane" eOpposite="#//Lane/right"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="right" eType="#//Lane"
+        eOpposite="#//Lane/left"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Car">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="on" eType="#//Lane"/>
+  </eClassifiers>
+</ecore:EPackage>

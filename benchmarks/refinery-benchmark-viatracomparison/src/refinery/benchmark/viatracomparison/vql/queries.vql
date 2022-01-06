@@ -1,0 +1,54 @@
+package refinery.benchmark.viatracomparison.vql
+
+import epackage "refinery-benchmark-viatracomparison.traffic"
+
+pattern closeCars(car1: Car, car2: Car) {
+	// same lane
+	Car.on(car1,lane);
+	Car.on(car2,lane);
+	car1 != car2;
+} or {
+	// following lane
+	Lane.following(lane1,lane2);
+	Car.on(car1,lane1);
+	Car.on(car2,lane2);
+} or {
+	// neighboring lanes
+	Lane.left(lane1,lane2);
+	Car.on(car1,lane1);
+	Car.on(car2,lane2);
+}
+
+/*pattern followingLane(from: Lane, to: Lane) {
+	Lane.following(from,to);
+}*/
+pattern hasFollowing(from : Lane) {
+	Lane.following(from,_to);
+}
+pattern hasPrevious(to : Lane) {
+	Lane.following(_from,to);
+}
+
+pattern carOnLane(car: Car, lane: Lane) {
+	Car.on(car,lane);
+}
+
+pattern spawnCar(lane : Lane) {
+	neg find hasPrevious(lane);
+	neg find carOnLane(_,lane);
+}
+pattern despawnCar(lane : Lane, car: Car) {
+	neg find hasFollowing(lane);
+	find carOnLane(car,lane);
+}
+
+pattern moveCar(from: Lane, to: Lane, car: Car) {
+	Lane.following(from,to);
+	Car.on(car,from);
+} or {
+	Lane.left(from,to);
+	Car.on(car,from);
+} or {
+	Lane.right(from,to);
+	Car.on(car,from);
+}
