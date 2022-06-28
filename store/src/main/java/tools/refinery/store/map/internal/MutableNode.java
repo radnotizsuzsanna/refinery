@@ -7,11 +7,12 @@ import tools.refinery.store.map.ContinousHashProvider;
 
 public class MutableNode<K, V> extends Node<K, V> {
 	int cachedHash;
+	protected boolean cachedHashValid;
 	protected Object[] content;
 
 	protected MutableNode() {
 		this.content = new Object[2 * FACTOR];
-		updateHash();
+		invalidateHash();
 	}
 
 	public static <K, V> MutableNode<K, V> initialize(K key, V value, ContinousHashProvider<? super K> hashProvider,
@@ -24,7 +25,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 			MutableNode<K, V> res = new MutableNode<>();
 			res.content[2 * fragment] = key;
 			res.content[2 * fragment + 1] = value;
-			res.updateHash();
+			res.invalidateHash();
 			return res;
 		}
 	}
@@ -49,7 +50,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 				nodeUsed++;
 			}
 		}
-		this.cachedHash = node.hashCode();
+		this.cachedHashValid = false;
 	}
 
 	@Override
@@ -69,7 +70,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 			@SuppressWarnings("unchecked")
 			var nodeCandidate = (Node<K, V>) content[2 * selectedHashFragment + 1];
 			if (nodeCandidate != null) {
-				int newDepth = depth + 1;
+				int newDepth = incrementDepth(depth);
 				int newHash = newHash(hashProvider, key, hash, newDepth);
 				return nodeCandidate.getValue(key, hashProvider, defaultValue, newHash, newDepth);
 			} else {
@@ -79,8 +80,8 @@ public class MutableNode<K, V> extends Node<K, V> {
 	}
 
 	@Override
-	public Node<K, V> putValue(K key, V value, OldValueBox<V> oldValueBox, ContinousHashProvider<? super K> hashProvider,
-			V defaultValue, int hash, int depth) {
+	public Node<K, V> putValue(K key, V value, OldValueBox<V> oldValueBox,
+			ContinousHashProvider<? super K> hashProvider, V defaultValue, int hash, int depth) {
 		int selectedHashFragment = hashFragment(hash, shiftDepth(depth));
 		@SuppressWarnings("unchecked")
 		K keyCandidate = (K) content[2 * selectedHashFragment];
@@ -112,8 +113,9 @@ public class MutableNode<K, V> extends Node<K, V> {
 			var nodeCandidate = (Node<K, V>) content[2 * selectedHashFragment + 1];
 			if (nodeCandidate != null) {
 				// If it has value, it is a subnode -> upate that
+				int newDepth = incrementDepth(depth);
 				var newNode = nodeCandidate.putValue(key, value, oldValueBox, hashProvider, defaultValue,
-						newHash(hashProvider, key, hash, depth + 1), depth + 1);
+						newHash(hashProvider, key, hash, newDepth), newDepth);
 				return updateWithSubNode(selectedHashFragment, newNode, value.equals(defaultValue));
 			} else {
 				// If it does not have value, put it in the empty place
@@ -133,7 +135,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 		content[2 * selectedHashFragment] = key;
 		oldValueBox.setOldValue(defaultValue);
 		content[2 * selectedHashFragment + 1] = value;
-		updateHash();
+		invalidateHash();
 		return this;
 	}
 
@@ -148,7 +150,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 	Node<K, V> updateValue(V value, OldValueBox<V> oldValue, int selectedHashFragment) {
 		oldValue.setOldValue((V) content[2 * selectedHashFragment + 1]);
 		content[2 * selectedHashFragment + 1] = value;
-		updateHash();
+		invalidateHash();
 		return this;
 	}
 
@@ -164,7 +166,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 				// Check whether this node become empty
 				content[2 * selectedHashFragment + 1] = null; // i.e. the new node
 				if (hasContent()) {
-					updateHash();
+					invalidateHash();
 					return this;
 				} else {
 					return null;
@@ -178,7 +180,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 						// orphan subnode data is replaced with data
 						content[2 * selectedHashFragment] = immutableNewNode.content[orphaned * 2];
 						content[2 * selectedHashFragment + 1] = immutableNewNode.content[orphaned * 2 + 1];
-						updateHash();
+						invalidateHash();
 						return this;
 					}
 				}
@@ -186,7 +188,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 		}
 		// normal behaviour
 		content[2 * selectedHashFragment + 1] = newNode;
-		updateHash();
+		invalidateHash();
 		return this;
 
 	}
@@ -226,11 +228,11 @@ public class MutableNode<K, V> extends Node<K, V> {
 		V previousValue = (V) content[2 * selectedHashFragmentOfCurrentDepth + 1];
 
 		MutableNode<K, V> newSubNode = newNodeWithTwoEntries(hashProvider, previousKey, previousValue,
-				hashProvider.getHash(previousKey, hashDepth(depth)), newKey, newValue, hashOfNewKey, depth + 1);
+				hashProvider.getHash(previousKey, hashDepth(depth)), newKey, newValue, hashOfNewKey, incrementDepth(depth));
 
 		content[2 * selectedHashFragmentOfCurrentDepth] = null;
 		content[2 * selectedHashFragmentOfCurrentDepth + 1] = newSubNode;
-		updateHash();
+		invalidateHash();
 		return this;
 	}
 
@@ -252,10 +254,10 @@ public class MutableNode<K, V> extends Node<K, V> {
 			subNode.content[newFragment2 * 2 + 1] = value2;
 		} else {
 			MutableNode<K, V> subSubNode = newNodeWithTwoEntries(hashProvider, key1, value1, newHash1, key2, value2,
-					newHash2, newdepth + 1);
+					newHash2, incrementDepth(newdepth));
 			subNode.content[newFragment1 * 2 + 1] = subSubNode;
 		}
-		subNode.updateHash();
+		subNode.invalidateHash();
 		return subNode;
 	}
 
@@ -265,7 +267,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 		oldValue.setOldValue((V) content[2 * selectedHashFragment + 1]);
 		content[2 * selectedHashFragment + 1] = null;
 		if (hasContent()) {
-			updateHash();
+			invalidateHash();
 			return this;
 		} else {
 			return null;
@@ -377,7 +379,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 				@SuppressWarnings("unchecked")
 				Node<K, V> subNode = (Node<K, V>) content[2 * i + 1];
 				builder.append("\n");
-				subNode.prettyPrint(builder, depth + 1, i);
+				subNode.prettyPrint(builder, incrementDepth(depth), i);
 			}
 		}
 	}
@@ -416,24 +418,28 @@ public class MutableNode<K, V> extends Node<K, V> {
 			if (this.content[2 * i + 1] != null && this.content[2 * i] == null) {
 				@SuppressWarnings("unchecked")
 				var subNode = (Node<K, V>) this.content[2 * i + 1];
-				subNode.checkIntegrity(hashProvider, defaultValue, depth + 1);
+				subNode.checkIntegrity(hashProvider, defaultValue, incrementDepth(depth));
 			}
 		}
 		// check the hash
-		int oldHash = this.cachedHash;
-		updateHash();
-		int newHash = this.cachedHash;
-		if (oldHash != newHash) {
-			throw new IllegalStateException("Hash code was not up to date! (old=" + oldHash + ",new=" + newHash + ")");
+		if(cachedHashValid) {
+			int oldHash = this.cachedHash;
+			invalidateHash();
+			int newHash = hashCode();
+			if (oldHash != newHash) {
+				throw new IllegalStateException("Hash code was not up to date! (old=" + oldHash + ",new=" + newHash + ")");
+			}
 		}
 	}
 
-	protected void updateHash() {
-		this.cachedHash = Arrays.hashCode(content);
+	protected void invalidateHash() {
+		this.cachedHashValid = false;
 	}
 
 	@Override
 	public int hashCode() {
+		this.cachedHash = Arrays.hashCode(content);
+		this.cachedHashValid = true;
 		return this.cachedHash;
 	}
 

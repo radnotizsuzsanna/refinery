@@ -122,7 +122,7 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 			int keyIndex = content.length - 1 - index(nodeMap, bitposition);
 			@SuppressWarnings("unchecked")
 			var subNode = (ImmutableNode<K, V>) content[keyIndex];
-			int newDepth = depth + 1;
+			int newDepth = incrementDepth(depth);
 			int newHash = newHash(hashProvider, key, hash, newDepth);
 			return subNode.getValue(key, hashProvider, defaultValue, newHash, newDepth);
 		}
@@ -170,7 +170,7 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 			int keyIndex = content.length - 1 - index(nodeMap, bitposition);
 			@SuppressWarnings("unchecked")
 			var subNode = (ImmutableNode<K, V>) content[keyIndex];
-			int newDepth = depth + 1;
+			int newDepth = incrementDepth(depth);
 			int newHash = newHash(hashProvider, key, hash, newDepth);
 			var newsubNode = subNode.putValue(key, value, oldValue, hashProvider, defaultValue, newHash, newDepth);
 
@@ -292,7 +292,7 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 				@SuppressWarnings("unchecked")
 				Node<K, V> subNode = (Node<K, V>) content[content.length - 1 - index(nodeMap, nodeMask)];
 				builder.append("\n");
-				subNode.prettyPrint(builder, depth + 1, i);
+				subNode.prettyPrint(builder, incrementDepth(depth), i);
 			}
 			nodeMask <<= 1;
 		}
@@ -315,7 +315,7 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 			if (!(subnode instanceof ImmutableNode<?, ?>)) {
 				throw new IllegalStateException("Immutable node contains mutable subnodes!");
 			} else {
-				subnode.checkIntegrity(hashProvider, defaultValue, depth + 1);
+				subnode.checkIntegrity(hashProvider, defaultValue, incrementDepth(depth));
 			}
 		}
 	}
