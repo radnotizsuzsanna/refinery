@@ -8,6 +8,7 @@ import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.Cursor;
 import tools.refinery.store.map.DiffCursor;
 import tools.refinery.store.map.VersionedMap;
+import tools.refinery.store.map.VersionedMapStatistics;
 import tools.refinery.store.map.VersionedMapStoreImpl;
 
 /**
@@ -167,5 +168,13 @@ public class VersionedMapImpl<K,V> implements VersionedMap<K,V>{
 			this.root.checkIntegrity(hashProvider, defaultValue, 0);
 		}
 	}
-
+	
+	@Override
+	public VersionedMapStatistics getStatistics() {
+		VersionedMapStatistics statistics = new VersionedMapStatistics();
+		if(this.root != null) {
+			root.fillStatistics(statistics, 0);
+		}
+		return statistics;
+	}
 }

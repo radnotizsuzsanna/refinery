@@ -3,6 +3,7 @@ package tools.refinery.store.map.internal;
 import java.util.Map;
 
 import tools.refinery.store.map.ContinousHashProvider;
+import tools.refinery.store.map.VersionedMapStatistics;
 
 public abstract class Node<K, V> {
 	public static final int BRANCHING_FACTOR_BITS = 5;
@@ -120,5 +121,6 @@ public abstract class Node<K, V> {
 
 	public void checkIntegrity(ContinousHashProvider<? super K> hashProvider, V defaultValue, int depth) {
 	}
-
+	
+	public abstract void fillStatistics(VersionedMapStatistics statistics, int level);
 }

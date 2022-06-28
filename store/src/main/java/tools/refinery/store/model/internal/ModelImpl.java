@@ -2,6 +2,7 @@ package tools.refinery.store.model.internal;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import tools.refinery.store.map.ContinousHashProvider;
@@ -11,8 +12,10 @@ import tools.refinery.store.map.VersionedMap;
 import tools.refinery.store.map.internal.MapDiffCursor;
 import tools.refinery.store.model.Model;
 import tools.refinery.store.model.ModelDiffCursor;
+import tools.refinery.store.model.ModelStatistics;
 import tools.refinery.store.model.ModelStore;
 import tools.refinery.store.model.representation.DataRepresentation;
+import tools.refinery.store.model.representation.Relation;
 
 public class ModelImpl implements Model {
 	private final ModelStore store;
@@ -120,5 +123,19 @@ public class ModelImpl implements Model {
 		} else {
 			throw new IllegalArgumentException("Map does not contain state "+state+"!");
 		}
+	}
+	
+	@Override
+	public ModelStatistics getStatistics() {
+		ModelStatistics statistics = new ModelStatistics();
+		for(Entry<DataRepresentation<?, ?>, VersionedMap<?, ?>> entry : maps.entrySet()) {
+			DataRepresentation<?, ?> key = entry.getKey();
+			String name = key.getName();
+			if(key instanceof Relation<?> relation) {
+				name += "/"+relation.getArity();
+			}
+			statistics.addMapStatistic(name, entry.getValue().getStatistics());
+		}
+		return statistics;
 	}
 }

@@ -10,4 +10,6 @@ public interface VersionedMap<K,V> extends Versioned{
 	public long getSize();
 	
 	public DiffCursor<K,V> getDiffCursor(long state);
+	
+	public VersionedMapStatistics getStatistics();
 }

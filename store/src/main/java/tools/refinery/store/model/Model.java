@@ -17,4 +17,6 @@ public interface Model extends Versioned{
 	<K,V> long getSize(DataRepresentation<K,V> representation);
 	
 	ModelDiffCursor getDiffCursor(long to);
+	
+	ModelStatistics getStatistics();
 }

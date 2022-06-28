@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 import tools.refinery.store.map.ContinousHashProvider;
+import tools.refinery.store.map.VersionedMapStatistics;
 
 public class ImmutableNode<K, V> extends Node<K, V> {
 	/**
@@ -374,5 +375,45 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 			}
 		}
 		return true;
+	}
+	
+	@Override
+	public void fillStatistics(VersionedMapStatistics statistics, int level) {
+		int entries = Integer.bitCount(dataMap);
+		int mutableChild = 0;
+		int immutableChild = 0;
+		
+		int nodeMask1 = 1;
+		for (int i = 0; i < FACTOR; i++) {
+			if ((nodeMask1 & nodeMap) != 0) {
+				@SuppressWarnings("unchecked")
+				Node<K, V> subNode = (Node<K, V>) content[content.length - 1 - index(nodeMap, nodeMask1)];
+				if(subNode instanceof ImmutableNode<?, ?>) {
+					immutableChild++;
+				} else if(subNode instanceof MutableNode<?, ?>) {
+					mutableChild++;
+				}
+			}
+			nodeMask1 <<= 1;
+		}
+		
+		int empty = FACTOR-entries-mutableChild-immutableChild;
+		
+		statistics.addNodeAtLevel(level);
+		statistics.addEntryAtLevel(level, entries);
+		statistics.addNumberOfMutableNodeChildAtLevel(level, mutableChild);
+		statistics.addNumberOfImmutableNodeChildAtLevel(level, immutableChild);
+		statistics.addNumberOfEmptySpacesAtLevel(level, empty);
+		// no unused
+		
+		int nodeMask2 = 1;
+		for (int i = 0; i < FACTOR; i++) {
+			if ((nodeMask2 & nodeMap) != 0) {
+				@SuppressWarnings("unchecked")
+				Node<K, V> subNode = (Node<K, V>) content[content.length - 1 - index(nodeMap, nodeMask2)];
+				subNode.fillStatistics(statistics, level+1);
+			}
+			nodeMask2 <<= 1;
+		}
 	}
 }

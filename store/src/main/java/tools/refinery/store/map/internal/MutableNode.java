@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 import tools.refinery.store.map.ContinousHashProvider;
+import tools.refinery.store.map.VersionedMapStatistics;
 
 public class MutableNode<K, V> extends Node<K, V> {
 	int cachedHash;
@@ -456,5 +457,48 @@ public class MutableNode<K, V> extends Node<K, V> {
 		} else {
 			return false;
 		}
+	}
+	
+	@Override
+	public void fillStatistics(VersionedMapStatistics statistics, int level) {
+		int entries = 0;
+		int mutableChild = 0;
+		int immutableChild = 0;
+		int emptyAndUnused = 0;
+		for (int i = 0; i < FACTOR; i++) {
+			if(content[2*i] != null) {
+				entries++;
+			} else {
+				Object nodeCandidate = content[2*i+1];
+				if(nodeCandidate != null) {
+					if(nodeCandidate instanceof ImmutableNode<?, ?>) {
+						immutableChild++;
+					} else if(nodeCandidate instanceof MutableNode<?, ?>) {
+						mutableChild++;
+					}
+				} else {
+					emptyAndUnused++;
+				}
+			}
+		}
+		
+		statistics.addNodeAtLevel(level);
+		statistics.addEntryAtLevel(level, entries);
+		statistics.addNumberOfMutableNodeChildAtLevel(level, mutableChild);
+		statistics.addNumberOfImmutableNodeChildAtLevel(level, immutableChild);
+		statistics.addNumberOfEmptySpacesAtLevel(level, emptyAndUnused);
+		statistics.addNumberOfUnusedSpaceAtLevel(level, emptyAndUnused);
+		
+		for (int i = 0; i < FACTOR; i++) {
+			if(content[2*i] == null) {
+				@SuppressWarnings("unchecked")
+				Node<K,V> nodeCandidate = (Node<K, V>) content[2*i+1];
+				if(nodeCandidate != null) {
+					nodeCandidate.fillStatistics(statistics, level+1);
+				}
+			}
+		}
+
+		
 	}
 }

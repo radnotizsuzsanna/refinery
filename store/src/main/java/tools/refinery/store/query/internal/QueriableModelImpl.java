@@ -15,6 +15,7 @@ import tools.refinery.store.map.Cursor;
 import tools.refinery.store.map.DiffCursor;
 import tools.refinery.store.model.Model;
 import tools.refinery.store.model.ModelDiffCursor;
+import tools.refinery.store.model.ModelStatistics;
 import tools.refinery.store.model.Tuple;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
@@ -208,5 +209,10 @@ public class QueriableModelImpl implements QueriableModel {
 	public void restoreWithReinit(long state) {
 		model.restore(state);
 		this.initEngine();
+	}
+	
+	@Override
+	public ModelStatistics getStatistics() {
+		return model.getStatistics();
 	}
 }
