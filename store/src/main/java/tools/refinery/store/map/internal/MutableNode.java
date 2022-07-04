@@ -439,9 +439,13 @@ public class MutableNode<K, V> extends Node<K, V> {
 
 	@Override
 	public int hashCode() {
-		this.cachedHash = Arrays.hashCode(content);
-		this.cachedHashValid = true;
-		return this.cachedHash;
+		if(this.cachedHashValid) {
+			return this.cachedHash;
+		} else {
+			this.cachedHash = Arrays.hashCode(content);
+			this.cachedHashValid = true;
+			return this.cachedHash;
+		}
 	}
 
 	@Override
@@ -460,7 +464,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 	}
 	
 	@Override
-	public void fillStatistics(VersionedMapStatistics statistics, int level) {
+	public void fillStatistics(VersionedMapStatistics statistics, int level, boolean recursively) {
 		int entries = 0;
 		int mutableChild = 0;
 		int immutableChild = 0;
@@ -489,16 +493,16 @@ public class MutableNode<K, V> extends Node<K, V> {
 		statistics.addNumberOfEmptySpacesAtLevel(level, emptyAndUnused);
 		statistics.addNumberOfUnusedSpaceAtLevel(level, emptyAndUnused);
 		
-		for (int i = 0; i < FACTOR; i++) {
-			if(content[2*i] == null) {
-				@SuppressWarnings("unchecked")
-				Node<K,V> nodeCandidate = (Node<K, V>) content[2*i+1];
-				if(nodeCandidate != null) {
-					nodeCandidate.fillStatistics(statistics, level+1);
+		if(recursively) {
+			for (int i = 0; i < FACTOR; i++) {
+				if(content[2*i] == null) {
+					@SuppressWarnings("unchecked")
+					Node<K,V> nodeCandidate = (Node<K, V>) content[2*i+1];
+					if(nodeCandidate != null) {
+						nodeCandidate.fillStatistics(statistics, level+1, true);
+					}
 				}
 			}
 		}
-
-		
 	}
 }
