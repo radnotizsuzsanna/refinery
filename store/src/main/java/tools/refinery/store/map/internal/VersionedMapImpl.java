@@ -173,7 +173,7 @@ public class VersionedMapImpl<K,V> implements VersionedMap<K,V>{
 	public VersionedMapStatistics getStatistics() {
 		VersionedMapStatistics statistics = new VersionedMapStatistics();
 		if(this.root != null) {
-			root.fillStatistics(statistics, 0);
+			root.fillStatistics(statistics, 0, true);
 		}
 		return statistics;
 	}

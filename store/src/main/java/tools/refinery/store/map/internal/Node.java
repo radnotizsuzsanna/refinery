@@ -11,9 +11,10 @@ public abstract class Node<K, V> {
 	protected static final int NUMBER_OF_FACTORS = Integer.SIZE / BRANCHING_FACTOR_BITS;
 	protected static final int FACTOR_MASK = FACTOR - 1;
 	public static final int EFFECTIVE_BITS = BRANCHING_FACTOR_BITS * NUMBER_OF_FACTORS;
-	public static final int FACTOR_SELECTION_BITS =  32 - Integer.numberOfLeadingZeros(NUMBER_OF_FACTORS);
-	public static final int FACTOR_SELECTION_MASK = (1 << FACTOR_SELECTION_BITS) -1;
+	public static final int FACTOR_SELECTION_BITS = 32 - Integer.numberOfLeadingZeros(NUMBER_OF_FACTORS);
+	public static final int FACTOR_SELECTION_MASK = (1 << FACTOR_SELECTION_BITS) - 1;
 	public static final int INCREMENT_BIG_STEP = (1 << FACTOR_SELECTION_BITS) - NUMBER_OF_FACTORS;
+
 	/**
 	 * Increments the depth of the search in the tree. The depth parameter has two
 	 * components: the least few bits selects the fragment of the hashcode, the
@@ -24,7 +25,7 @@ public abstract class Node<K, V> {
 	 */
 	protected int incrementDepth(int depth) {
 		int newDepth = depth + 1;
-		if((newDepth & FACTOR_SELECTION_MASK) == NUMBER_OF_FACTORS ) {
+		if ((newDepth & FACTOR_SELECTION_MASK) == NUMBER_OF_FACTORS) {
 			newDepth += INCREMENT_BIG_STEP;
 		}
 		return newDepth;
@@ -74,7 +75,7 @@ public abstract class Node<K, V> {
 	 */
 	protected int newHash(final ContinousHashProvider<? super K> hashProvider, K key, int hash, int depth) {
 		final int shiftDepth = shiftDepth(depth);
-		if(shiftDepth == 0) {
+		if (shiftDepth == 0) {
 			final int hashDepth = hashDepth(depth);
 			if (hashDepth >= ContinousHashProvider.MAX_PRACTICAL_DEPTH) {
 				throw new IllegalArgumentException(
@@ -121,6 +122,14 @@ public abstract class Node<K, V> {
 
 	public void checkIntegrity(ContinousHashProvider<? super K> hashProvider, V defaultValue, int depth) {
 	}
-	
-	public abstract void fillStatistics(VersionedMapStatistics statistics, int level);
+
+	/**
+	 * Fills the statistics object with metrics of the node.
+	 * 
+	 * @param statistics  The statistics object.
+	 * @param level       The level of the node in the tree.
+	 * @param recursively If true, then it is called recursively. Otherwise, it
+	 *                    collects the statistics of the single node.
+	 */
+	public abstract void fillStatistics(VersionedMapStatistics statistics, int level, boolean recursively);
 }

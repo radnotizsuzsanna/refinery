@@ -33,7 +33,7 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 		this.content = content;
 		this.precalculatedHash = precalculatedHash;
 	}
-
+	
 	/**
 	 * Constructor that copies a mutable node to an immutable.
 	 * 
@@ -378,7 +378,7 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 	}
 	
 	@Override
-	public void fillStatistics(VersionedMapStatistics statistics, int level) {
+	public void fillStatistics(VersionedMapStatistics statistics, int level, boolean recursively) {
 		int entries = Integer.bitCount(dataMap);
 		int mutableChild = 0;
 		int immutableChild = 0;
@@ -404,16 +404,18 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 		statistics.addNumberOfMutableNodeChildAtLevel(level, mutableChild);
 		statistics.addNumberOfImmutableNodeChildAtLevel(level, immutableChild);
 		statistics.addNumberOfEmptySpacesAtLevel(level, empty);
-		// no unused
+		statistics.addNumberOfUnusedSpaceAtLevel(level, 0);
 		
-		int nodeMask2 = 1;
-		for (int i = 0; i < FACTOR; i++) {
-			if ((nodeMask2 & nodeMap) != 0) {
-				@SuppressWarnings("unchecked")
-				Node<K, V> subNode = (Node<K, V>) content[content.length - 1 - index(nodeMap, nodeMask2)];
-				subNode.fillStatistics(statistics, level+1);
+		if(recursively) {
+			int nodeMask2 = 1;
+			for (int i = 0; i < FACTOR; i++) {
+				if ((nodeMask2 & nodeMap) != 0) {
+					@SuppressWarnings("unchecked")
+					Node<K, V> subNode = (Node<K, V>) content[content.length - 1 - index(nodeMap, nodeMask2)];
+					subNode.fillStatistics(statistics, level+1, true);
+				}
+				nodeMask2 <<= 1;
 			}
-			nodeMask2 <<= 1;
 		}
 	}
 }
