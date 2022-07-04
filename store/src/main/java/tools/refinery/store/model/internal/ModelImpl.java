@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.Cursor;
@@ -19,11 +21,11 @@ import tools.refinery.store.model.representation.Relation;
 
 public class ModelImpl implements Model {
 	private final ModelStore store;
-	private final Map<DataRepresentation<?, ?>, VersionedMap<?, ?>> maps;
+	private final SortedMap<DataRepresentation<?, ?>, VersionedMap<?, ?>> maps;
 
 	public ModelImpl(ModelStore store, Map<DataRepresentation<?, ?>, VersionedMap<?, ?>> maps) {
 		this.store = store;
-		this.maps = maps;
+		this.maps = new TreeMap<>(maps);
 	}
 
 	@Override
@@ -123,6 +125,16 @@ public class ModelImpl implements Model {
 		} else {
 			throw new IllegalArgumentException("Map does not contain state "+state+"!");
 		}
+	}
+	
+	@Override
+	public int hashCode() {
+		return this.maps.hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return this.maps.equals(obj);
 	}
 	
 	@Override

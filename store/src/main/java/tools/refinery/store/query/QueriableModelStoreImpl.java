@@ -10,6 +10,7 @@ import org.eclipse.viatra.query.runtime.api.GenericQuerySpecification;
 import tools.refinery.store.model.ModelDiffCursor;
 import tools.refinery.store.model.ModelStore;
 import tools.refinery.store.model.ModelStoreImpl;
+import tools.refinery.store.model.ModelStoreStatistics;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.query.building.DNFAnd;
 import tools.refinery.store.query.building.DNFAtom;
@@ -123,5 +124,9 @@ public class QueriableModelStoreImpl implements QueriableModelStore {
 	@Override
 	public synchronized ModelDiffCursor getDiffCursor(long from, long to) {
 		return this.store.getDiffCursor(from, to);
+	}
+	@Override
+	public ModelStoreStatistics getStatistics() {
+		return this.store.getStatistics();
 	}
 }

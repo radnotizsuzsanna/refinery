@@ -13,4 +13,6 @@ public interface ModelStore {
 	
 	Set<Long> getStates();
 	ModelDiffCursor getDiffCursor(long from, long to);
+	
+	ModelStoreStatistics getStatistics();
 }

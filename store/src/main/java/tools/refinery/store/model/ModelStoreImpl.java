@@ -5,32 +5,38 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.DiffCursor;
 import tools.refinery.store.map.VersionedMap;
 import tools.refinery.store.map.VersionedMapStore;
 import tools.refinery.store.map.VersionedMapStoreImpl;
+import tools.refinery.store.map.VersionedMapStoreStatistics;
 import tools.refinery.store.model.internal.ModelImpl;
 import tools.refinery.store.model.internal.SimilarRelationEquivalenceClass;
 import tools.refinery.store.model.representation.AuxilaryData;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 
-import java.util.Set;
-
 public class ModelStoreImpl implements ModelStore {
 
 	private final Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores;
 
 	public ModelStoreImpl(Set<DataRepresentation<?, ?>> dataRepresentations) {
-		stores = initStores(dataRepresentations);
+		stores = new HashMap<>();
+		initStores(stores, dataRepresentations);
 	}
 
-	private Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> initStores(
-			Set<DataRepresentation<?, ?>> dataRepresentations) {
-		Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result = new HashMap<>();
+	public ModelStoreImpl(List<Set<DataRepresentation<?, ?>>> dataRepresentationGroup) {
+		stores = new HashMap<>();
+		for (Set<DataRepresentation<?, ?>> set : dataRepresentationGroup) {
+			initStores(stores, set);
+		}
+	}
 
+	private void initStores(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
+			Set<DataRepresentation<?, ?>> dataRepresentations) {
 		Map<SimilarRelationEquivalenceClass, List<Relation<?>>> symbolRepresentationsPerHashPerArity = new HashMap<>();
 
 		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
@@ -49,8 +55,6 @@ public class ModelStoreImpl implements ModelStore {
 		for (List<Relation<?>> symbolGroup : symbolRepresentationsPerHashPerArity.values()) {
 			initRepresentationGroup(result, symbolGroup);
 		}
-
-		return result;
 	}
 
 	private void initRepresentationGroup(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
@@ -106,7 +110,7 @@ public class ModelStoreImpl implements ModelStore {
 		if (iterator.hasNext()) {
 			return Set.copyOf(iterator.next().getStates());
 		}
-		return Set.of(0l);
+		return Set.of();
 	}
 
 	@Override
@@ -118,5 +122,43 @@ public class ModelStoreImpl implements ModelStore {
 			diffcursors.put(representation, diffCursor);
 		}
 		return new ModelDiffCursor(diffcursors);
+	}
+
+	@Override
+	public ModelStoreStatistics getStatistics() {
+
+		// 1. Collect symbols grouped by common statistics.
+
+		Map<VersionedMapStoreStatistics, String> statistics2Name = new HashMap<>();
+		for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : this.stores.entrySet()) {
+			VersionedMapStoreStatistics newstatistics = entry.getValue().getStatistics(statistics2Name.keySet());
+			String symbolCollectionName = statistics2Name.get(newstatistics);
+			if (symbolCollectionName != null) {
+				statistics2Name.put(newstatistics, symbolCollectionName + "," + entry.getKey().getName());
+			} else {
+				statistics2Name.put(newstatistics, entry.getKey().getName());
+			}
+		}
+
+		// 2. For each group, collect state statistic calculated from the statistics of
+		// the restored state.
+
+		ModelStoreStatistics statistics = new ModelStoreStatistics();
+		for (Entry<VersionedMapStoreStatistics, String> statisticsGroup : statistics2Name.entrySet()) {
+			statistics.addStoreStatistics(statisticsGroup.getValue(), statisticsGroup.getKey());
+		}
+
+		Set<Long> states = this.getStates();
+		statistics.setStates(states.size());
+
+		for (Long state : states) {
+			statistics.addStateStatistics(state, this.createModel(state).getStatistics());
+		}
+		
+		// 3. finalize the statistics
+		
+		statistics.finish();
+		
+		return statistics;
 	}
 }
