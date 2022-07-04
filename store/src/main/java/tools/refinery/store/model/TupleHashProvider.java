@@ -56,30 +56,42 @@ public class TupleHashProvider implements ContinousHashProvider<Tuple> {
 
 	@Override
 	public int getHash(Tuple key, int index) {
-		// quick hash values for typical configurations
-		if (index == 0) {
-			if (key instanceof Tuple1 t1) {
-				return t1.value0;
-			} else if (key instanceof Tuple2 t2) {
-				int result = 2 * t2.value0 + t2.value1;
-				if (result > LARGESTPRIME30BITS_INTEGER) {
-					return result % LARGESTPRIME30BITS_INTEGER;
-				} else
-					return result;
+		if(key instanceof Tuple1 t1) {
+			return t1.value0;
+		} else if(key instanceof Tuple2 t2){
+			if(index == 0) {
+				return murmur3T2(t2.value0, t2.value1);
+			} else if(index == 1) {
+				return lagrangeT2I0Quick(t2);
+			} else if(index == 2) {
+				return lagrangeT2I1Quick(t2);
+			} else {
+				return lagrangeTXIX(key, index-1);
 			}
+		} else {
+			return lagrangeTXIX(key, index);
 		}
-		if (index == 1) {
-			if (key instanceof Tuple2 t2) {
-				int value0 = t2.value0;
-				int value1 = t2.value1;
-				if(value0 < LARGESTBINARLINDEX1 && value1 < LARGESTBINARLINDEX1) {
-					return 3* value0 + value1;
-				}
-			}
+
+	}
+
+	private static int lagrangeT2I0Quick(Tuple2 t2) {
+		int result = 2 * t2.value0 + t2.value1;
+		if (result > LARGESTPRIME30BITS_INTEGER) {
+			return result % LARGESTPRIME30BITS_INTEGER;
+		} else
+			return result;
+	}
+	private static int lagrangeT2I1Quick(Tuple2 t2) {
+		int value0 = t2.value0;
+		int value1 = t2.value1;
+		if(value0 < LARGESTBINARLINDEX1 && value1 < LARGESTBINARLINDEX1) {
+			return 3* value0 + value1;
+		} else {
+			return lagrangeTXIX(t2, 1);
 		}
-		if (index >= primes.length) {
-			throw new IllegalArgumentException("Not enough prime numbers to support index");
-		}
+	}
+	
+	private static int lagrangeTXIX(Tuple key, int index) {
 		long accumulator = 0;
 		final int prime = primes[index];
 		for (int i = 0; i < key.getSize(); i++) {
@@ -87,5 +99,25 @@ public class TupleHashProvider implements ContinousHashProvider<Tuple> {
 		}
 
 		return (int) accumulator;
+	}
+	
+	private static int murmur3T2(int v0, int v1)
+	{
+		int h = 0;
+	    
+	    h = murmur32Scramble(v0, h);
+        h = murmur32Scramble(v1, h);
+        
+		return h;
+	}
+	
+	private static int murmur32Scramble(int k, int h) {
+	    k *= 0xcc9e2d51;
+	    k = (k << 15) | (k >>> 17);
+	    k *= 0x1b873593;
+	    h ^= k;
+        h = (h << 13) | (h >>> 19);
+        h = h * 5 + 0xe6546b64;
+	    return h;
 	}
 }
