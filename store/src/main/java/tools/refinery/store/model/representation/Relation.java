@@ -1,5 +1,7 @@
 package tools.refinery.store.model.representation;
 
+import java.util.Objects;
+
 import tools.refinery.store.model.Tuple;
 import tools.refinery.store.model.TupleHashProvider;
 
@@ -27,5 +29,25 @@ public class Relation<D> extends DataRepresentation<Tuple, D> {
 		if(key == null) {
 			return false;
 		} else return key.getSize() == getArity();
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + Objects.hash(arity, name);
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Relation<?> other = (Relation<?>) obj;
+		return arity == other.arity && Objects.equals(name, other.name);
 	}
 }
