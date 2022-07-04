@@ -6,4 +6,7 @@ apply from: "${rootDir}/gradle/jmh.gradle"
 dependencies {
 	implementation "org.eclipse.viatra:viatra-query-runtime:${viatraVersion}"
 	implementation "org.eclipse.emf:org.eclipse.emf.ecore:${ecoreVersion}"
+	implementation "org.eclipse.emf:org.eclipse.emf.ecore.xmi:${ecoreXmiVersion}"
+	implementation 'org.eclipse.collections:eclipse-collections-api:11.0.0'
+	implementation 'org.eclipse.collections:eclipse-collections:11.0.0'
 }
