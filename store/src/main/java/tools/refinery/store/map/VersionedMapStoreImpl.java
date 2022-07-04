@@ -7,7 +7,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+
+import org.eclipse.collections.api.factory.Maps;
 
 import tools.refinery.store.map.internal.ImmutableNode;
 import tools.refinery.store.map.internal.MapDiffCursor;
@@ -23,7 +26,7 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 	protected final V defaultValue;
 
 	// Dynamic data
-	protected final Map<Long, ImmutableNode<K, V>> states = new HashMap<>();
+	protected final Map<Long, ImmutableNode<K, V>> states = createStateSpace();
 	protected final Map<Node<K, V>, ImmutableNode<K, V>> nodeCache;
 	protected long nextID = 0;
 
@@ -33,7 +36,7 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 		this.hashProvider = hashProvider;
 		this.defaultValue = defaultValue;
 		if (config.isSharedNodeCacheInStore()) {
-			nodeCache = new HashMap<>();
+			nodeCache = createNodeCache();
 		} else {
 			nodeCache = null;
 		}
@@ -58,7 +61,7 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 		if (config.isSharedNodeCacheInStoreGroups()) {
 			Map<Node<K, V>, ImmutableNode<K, V>> nodeCache;
 			if (config.isSharedNodeCacheInStore()) {
-				nodeCache = new HashMap<>();
+				nodeCache = createNodeCache();
 			} else {
 				nodeCache = null;
 			}
@@ -71,6 +74,13 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 			}
 		}
 		return result;
+	}
+	
+	private static <K,V> Map<Node<K, V>, ImmutableNode<K, V>> createNodeCache() {
+		return new HashMap<>();
+	}
+	private static <K,V> Map<Long, ImmutableNode<K, V>> createStateSpace() {
+		return Maps.mutable.ofInitialCapacity(1000);
 	}
 
 	public static <K, V> List<VersionedMapStore<K, V>> createSharedVersionedMapStores(int amount,
@@ -131,5 +141,22 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 		Cursor<K, V> cursor1 = map1.getAll();
 		Cursor<K, V> cursor2 = map2.getAll();
 		return new MapDiffCursor<>(this.hashProvider, this.defaultValue, cursor1, cursor2);
+	}
+	
+	@Override
+	public VersionedMapStoreStatistics getStatistics(Set<VersionedMapStoreStatistics> existingStatistics) {
+		for (VersionedMapStoreStatistics existing : existingStatistics) {
+			if(existing.getNodeCache() == nodeCache) {
+				return existing;
+			}
+		}
+		int noStates = this.states.size();
+		VersionedMapStatistics mapStatistics = new VersionedMapStatistics();
+		if(nodeCache != null) {
+			for (Entry<Node<K, V>, ImmutableNode<K, V>> entry : this.nodeCache.entrySet()) {
+				entry.getValue().fillStatistics(mapStatistics, 0, false);
+			}
+		}
+		return new VersionedMapStoreStatistics(noStates, nodeCache, mapStatistics);
 	}
 }

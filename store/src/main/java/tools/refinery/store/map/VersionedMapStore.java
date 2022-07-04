@@ -11,4 +11,6 @@ public interface VersionedMapStore<K, V> {
 	public Set<Long> getStates();
 
 	public DiffCursor<K,V> getDiffCursor(long fromState, long toState);
+	
+	public VersionedMapStoreStatistics getStatistics(Set<VersionedMapStoreStatistics> existingStatistics);
 }
