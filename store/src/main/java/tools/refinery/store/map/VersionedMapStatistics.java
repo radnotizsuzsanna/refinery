@@ -3,25 +3,28 @@ package tools.refinery.store.map;
 import static tools.refinery.store.util.StatisticsUtil.addLine;
 import static tools.refinery.store.util.StatisticsUtil.sum;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class VersionedMapStatistics {
-	ArrayList<Integer> numberOfNodesAtLevel = new ArrayList<>();
-	ArrayList<Integer> numberOfEntriesAtLevel = new ArrayList<>();
-	ArrayList<Integer> numberOfImmutableNodeChildAtLevel = new ArrayList<>();
-	ArrayList<Integer> numberOfMutableNodeChildAtLevel = new ArrayList<>();
-	ArrayList<Integer> numberOfEmptySpacesAtLevel = new ArrayList<>();
-	ArrayList<Integer> numberOfAllocatedAndUnusedSpaceAtLevel = new ArrayList<>();
+import org.eclipse.collections.api.list.primitive.IntList;
+import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
 
-	private void increment(ArrayList<Integer> list, int level, int value) {
+public class VersionedMapStatistics {
+
+	IntArrayList numberOfNodesAtLevel = new IntArrayList();
+	IntArrayList numberOfEntriesAtLevel = new IntArrayList();
+	IntArrayList numberOfImmutableNodeChildAtLevel = new IntArrayList();
+	IntArrayList numberOfMutableNodeChildAtLevel = new IntArrayList();
+	IntArrayList numberOfEmptySpacesAtLevel = new IntArrayList();
+	IntArrayList numberOfAllocatedAndUnusedSpaceAtLevel = new IntArrayList();
+
+	private void increment(IntArrayList list, int level, int value) {
 		while (list.size() <= level) {
 			list.add(0);
 		}
 		list.set(level, list.get(level) + value);
 	}
 
-	public List<Integer> getNumberOfNodesAtLevel() {
+	public IntList getNumberOfNodesAtLevel() {
 		return numberOfNodesAtLevel;
 	}
 
@@ -29,7 +32,7 @@ public class VersionedMapStatistics {
 		increment(numberOfNodesAtLevel, level, 1);
 	}
 
-	public List<Integer> getNumberOfEntriesAtLevel() {
+	public IntList getNumberOfEntriesAtLevel() {
 		return numberOfEntriesAtLevel;
 	}
 
@@ -37,7 +40,7 @@ public class VersionedMapStatistics {
 		increment(numberOfEntriesAtLevel, level, entries);
 	}
 
-	public List<Integer> getNumberOfImmutableNodeChildAtLevel() {
+	public IntList getNumberOfImmutableNodeChildAtLevel() {
 		return numberOfImmutableNodeChildAtLevel;
 	}
 
@@ -45,7 +48,7 @@ public class VersionedMapStatistics {
 		increment(numberOfImmutableNodeChildAtLevel, level, childs);
 	}
 
-	public List<Integer> getNumberOfMutableNodeChildAtLevel() {
+	public IntList getNumberOfMutableNodeChildAtLevel() {
 		return numberOfMutableNodeChildAtLevel;
 	}
 
@@ -53,7 +56,7 @@ public class VersionedMapStatistics {
 		increment(numberOfMutableNodeChildAtLevel, level, child);
 	}
 
-	public List<Integer> getNumberOfEmptySpacesAtLevel() {
+	public IntList getNumberOfEmptySpacesAtLevel() {
 		return numberOfEmptySpacesAtLevel;
 	}
 
@@ -61,12 +64,22 @@ public class VersionedMapStatistics {
 		increment(numberOfEmptySpacesAtLevel, level, child);
 	}
 
-	public List<Integer> getNumberOfAllocatedAndUnusedSpace() {
+	public IntList getNumberOfAllocatedAndUnusedSpace() {
 		return numberOfAllocatedAndUnusedSpaceAtLevel;
 	}
 
 	public void addNumberOfUnusedSpaceAtLevel(int level, int child) {
 		increment(numberOfAllocatedAndUnusedSpaceAtLevel, level, child);
+	}
+	
+	public void merge(VersionedMapStatistics other) {
+		add(this.numberOfNodesAtLevel, other.numberOfNodesAtLevel);
+		add(this.numberOfEntriesAtLevel, other.numberOfEntriesAtLevel);
+		add(this.numberOfImmutableNodeChildAtLevel, other.numberOfImmutableNodeChildAtLevel);
+		add(this.numberOfMutableNodeChildAtLevel, other.numberOfMutableNodeChildAtLevel);
+		add(this.numberOfEmptySpacesAtLevel, other.numberOfEmptySpacesAtLevel);
+		add(this.numberOfAllocatedAndUnusedSpaceAtLevel, other.numberOfAllocatedAndUnusedSpaceAtLevel);
+		
 	}
 
 	public String print() {
@@ -74,16 +87,15 @@ public class VersionedMapStatistics {
 				numberOfMutableNodeChildAtLevel, numberOfEmptySpacesAtLevel, numberOfAllocatedAndUnusedSpaceAtLevel);
 	}
 
-	private static String format(ArrayList<Integer> numberOfNodesAtLevel, ArrayList<Integer> numberOfEntriesAtLevel,
-			ArrayList<Integer> numberOfImmutableNodeChildAtLevel, ArrayList<Integer> numberOfMutableNodeChildAtLevel,
-			ArrayList<Integer> numberOfEmptySpacesAtLevel, ArrayList<Integer> numberOfAllocatedAndUnusedSpaceAtLevel) {
+	private static String format(IntArrayList numberOfNodesAtLevel, IntArrayList numberOfEntriesAtLevel,
+			IntArrayList numberOfImmutableNodeChildAtLevel, IntArrayList numberOfMutableNodeChildAtLevel,
+			IntArrayList numberOfEmptySpacesAtLevel, IntArrayList numberOfAllocatedAndUnusedSpaceAtLevel) {
 		StringBuilder result = new StringBuilder();
 		addLine(result, "Level", "#Node", "#Entry", "#IChild", "#MChild", "#Empty", "#Unused");
 		for (int i = 0; i < numberOfNodesAtLevel.size(); i++) {
-			addLine(result, Integer.toString(i + 1), numberOfNodesAtLevel.get(i).toString(),
-					numberOfEntriesAtLevel.get(i).toString(), numberOfImmutableNodeChildAtLevel.get(i).toString(),
-					numberOfMutableNodeChildAtLevel.get(i).toString(), numberOfEmptySpacesAtLevel.get(i).toString(),
-					numberOfAllocatedAndUnusedSpaceAtLevel.get(i).toString());
+			addLine(result, Integer.toString(i + 1), numberOfNodesAtLevel.get(i), numberOfEntriesAtLevel.get(i),
+					numberOfImmutableNodeChildAtLevel.get(i), numberOfMutableNodeChildAtLevel.get(i),
+					numberOfEmptySpacesAtLevel.get(i), numberOfAllocatedAndUnusedSpaceAtLevel.get(i));
 		}
 		addLine(result, "sum", Integer.toString(sum(numberOfNodesAtLevel)),
 				Integer.toString(sum(numberOfEntriesAtLevel)), Integer.toString(sum(numberOfImmutableNodeChildAtLevel)),
@@ -94,12 +106,12 @@ public class VersionedMapStatistics {
 	}
 
 	public static String printSum(List<VersionedMapStatistics> statistics) {
-		ArrayList<Integer> numberOfNodesAtLevel = new ArrayList<>();
-		ArrayList<Integer> numberOfEntriesAtLevel = new ArrayList<>();
-		ArrayList<Integer> numberOfImmutableNodeChildAtLevel = new ArrayList<>();
-		ArrayList<Integer> numberOfMutableNodeChildAtLevel = new ArrayList<>();
-		ArrayList<Integer> numberOfEmptySpacesAtLevel = new ArrayList<>();
-		ArrayList<Integer> numberOfAllocatedAndUnusedSpaceAtLevel = new ArrayList<>();
+		IntArrayList numberOfNodesAtLevel = new IntArrayList();
+		IntArrayList numberOfEntriesAtLevel = new IntArrayList();
+		IntArrayList numberOfImmutableNodeChildAtLevel = new IntArrayList();
+		IntArrayList numberOfMutableNodeChildAtLevel = new IntArrayList();
+		IntArrayList numberOfEmptySpacesAtLevel = new IntArrayList();
+		IntArrayList numberOfAllocatedAndUnusedSpaceAtLevel = new IntArrayList();
 
 		for (VersionedMapStatistics versionedMapStatistics : statistics) {
 			add(numberOfNodesAtLevel, versionedMapStatistics.numberOfNodesAtLevel);
@@ -113,7 +125,7 @@ public class VersionedMapStatistics {
 				numberOfMutableNodeChildAtLevel, numberOfEmptySpacesAtLevel, numberOfAllocatedAndUnusedSpaceAtLevel);
 	}
 
-	private static void add(ArrayList<Integer> to, ArrayList<Integer> from) {
+	private static void add(IntArrayList to, IntArrayList from) {
 		int commonSize = Math.max(to.size(), from.size());
 		while (to.size() < commonSize) {
 			to.add(0);

@@ -505,4 +505,9 @@ public class MutableNode<K, V> extends Node<K, V> {
 			}
 		}
 	}
+	
+	@Override
+	public VersionedMapStatistics getStatistics(Map<Object, Object> statistics, int level) {
+		throw new UnsupportedOperationException();
+	}
 }

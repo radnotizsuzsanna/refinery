@@ -3,6 +3,7 @@ package tools.refinery.store.map.internal;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.Cursor;
@@ -174,6 +175,15 @@ public class VersionedMapImpl<K,V> implements VersionedMap<K,V>{
 		VersionedMapStatistics statistics = new VersionedMapStatistics();
 		if(this.root != null) {
 			root.fillStatistics(statistics, 0, true);
+		}
+		return statistics;
+	}
+	
+	@Override
+	public VersionedMapStatistics getStatistics(Map<Object,Object> cache) {
+		VersionedMapStatistics statistics = new VersionedMapStatistics();
+		if(this.root != null) {
+			return root.getStatistics(cache, 0);
 		}
 		return statistics;
 	}

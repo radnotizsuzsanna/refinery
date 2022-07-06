@@ -2,6 +2,8 @@ package tools.refinery.store.util;
 
 import java.util.List;
 
+import org.eclipse.collections.api.list.primitive.IntList;
+
 public class StatisticsUtil {
 	private static String delim = "\t";
 	
@@ -9,6 +11,13 @@ public class StatisticsUtil {
 		int result = 0;
 		for (int integer : numbers) {
 			result+=integer;
+		}
+		return result;
+	}
+	public static int sum(IntList numbers) {
+		int result = 0;
+		for(int i=0; i<numbers.size(); i++) {
+			result += numbers.get(i);
 		}
 		return result;
 	}

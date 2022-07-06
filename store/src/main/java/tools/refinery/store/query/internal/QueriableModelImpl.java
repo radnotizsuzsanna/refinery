@@ -13,6 +13,8 @@ import org.eclipse.viatra.query.runtime.api.IQueryGroup;
 
 import tools.refinery.store.map.Cursor;
 import tools.refinery.store.map.DiffCursor;
+import tools.refinery.store.map.VersionedMapStatistics;
+import tools.refinery.store.map.internal.Node;
 import tools.refinery.store.model.Model;
 import tools.refinery.store.model.ModelDiffCursor;
 import tools.refinery.store.model.ModelStatistics;
@@ -214,5 +216,9 @@ public class QueriableModelImpl implements QueriableModel {
 	@Override
 	public ModelStatistics getStatistics() {
 		return model.getStatistics();
+	}
+	@Override
+	public ModelStatistics getStatistics(Map<Object, Object> cache) {
+		return model.getStatistics(cache);
 	}
 }

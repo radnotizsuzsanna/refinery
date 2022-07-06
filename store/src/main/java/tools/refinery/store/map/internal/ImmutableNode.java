@@ -379,6 +379,22 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 	
 	@Override
 	public void fillStatistics(VersionedMapStatistics statistics, int level, boolean recursively) {
+		fillDirectStatistics(statistics, level);
+		
+		if(recursively) {
+			int nodeMask2 = 1;
+			for (int i = 0; i < FACTOR; i++) {
+				if ((nodeMask2 & nodeMap) != 0) {
+					@SuppressWarnings("unchecked")
+					Node<K, V> subNode = (Node<K, V>) content[content.length - 1 - index(nodeMap, nodeMask2)];
+					subNode.fillStatistics(statistics, level+1, true);
+				}
+				nodeMask2 <<= 1;
+			}
+		}
+	}
+
+	private void fillDirectStatistics(VersionedMapStatistics statistics, int level) {
 		int entries = Integer.bitCount(dataMap);
 		int mutableChild = 0;
 		int immutableChild = 0;
@@ -405,17 +421,31 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 		statistics.addNumberOfImmutableNodeChildAtLevel(level, immutableChild);
 		statistics.addNumberOfEmptySpacesAtLevel(level, empty);
 		statistics.addNumberOfUnusedSpaceAtLevel(level, 0);
-		
-		if(recursively) {
+	}
+	
+	@Override
+	public VersionedMapStatistics getStatistics(Map<Object, Object> statistics, int level) {
+		VersionedMapStatistics stored = (VersionedMapStatistics) statistics.get(this);
+		if(stored != null) {
+			return stored;
+		} else {
+			VersionedMapStatistics calculated = new VersionedMapStatistics();
+			
+			fillDirectStatistics(calculated, level);
+			
 			int nodeMask2 = 1;
 			for (int i = 0; i < FACTOR; i++) {
 				if ((nodeMask2 & nodeMap) != 0) {
 					@SuppressWarnings("unchecked")
 					Node<K, V> subNode = (Node<K, V>) content[content.length - 1 - index(nodeMap, nodeMask2)];
-					subNode.fillStatistics(statistics, level+1, true);
+					VersionedMapStatistics subNodeStatistics = subNode.getStatistics(statistics, level+1);
+					calculated.merge(subNodeStatistics);
 				}
 				nodeMask2 <<= 1;
 			}
+			
+			statistics.put(this, calculated);
+			return calculated;
 		}
 	}
 }

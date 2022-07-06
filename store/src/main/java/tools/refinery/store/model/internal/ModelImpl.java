@@ -11,7 +11,9 @@ import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.Cursor;
 import tools.refinery.store.map.DiffCursor;
 import tools.refinery.store.map.VersionedMap;
+import tools.refinery.store.map.VersionedMapStatistics;
 import tools.refinery.store.map.internal.MapDiffCursor;
+import tools.refinery.store.map.internal.Node;
 import tools.refinery.store.model.Model;
 import tools.refinery.store.model.ModelDiffCursor;
 import tools.refinery.store.model.ModelStatistics;
@@ -147,6 +149,20 @@ public class ModelImpl implements Model {
 				name += "/"+relation.getArity();
 			}
 			statistics.addMapStatistic(name, entry.getValue().getStatistics());
+		}
+		return statistics;
+	}
+	
+	@Override
+	public ModelStatistics getStatistics(Map<Object, Object> cache) {
+		ModelStatistics statistics = new ModelStatistics();
+		for(Entry<DataRepresentation<?, ?>, VersionedMap<?, ?>> entry : maps.entrySet()) {
+			DataRepresentation<?, ?> key = entry.getKey();
+			String name = key.getName();
+			if(key instanceof Relation<?> relation) {
+				name += "/"+relation.getArity();
+			}
+			statistics.addMapStatistic(name, entry.getValue().getStatistics(cache));
 		}
 		return statistics;
 	}

@@ -10,9 +10,11 @@ import java.util.Set;
 import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.DiffCursor;
 import tools.refinery.store.map.VersionedMap;
+import tools.refinery.store.map.VersionedMapStatistics;
 import tools.refinery.store.map.VersionedMapStore;
 import tools.refinery.store.map.VersionedMapStoreImpl;
 import tools.refinery.store.map.VersionedMapStoreStatistics;
+import tools.refinery.store.map.internal.Node;
 import tools.refinery.store.model.internal.ModelImpl;
 import tools.refinery.store.model.internal.SimilarRelationEquivalenceClass;
 import tools.refinery.store.model.representation.AuxilaryData;
@@ -147,15 +149,20 @@ public class ModelStoreImpl implements ModelStore {
 		for (Entry<VersionedMapStoreStatistics, String> statisticsGroup : statistics2Name.entrySet()) {
 			statistics.addStoreStatistics(statisticsGroup.getValue(), statisticsGroup.getKey());
 		}
+		
+		// 3. get the number of states
 
 		Set<Long> states = this.getStates();
 		statistics.setStates(states.size());
-
+		
+		// 4. collect state statistics
+		
+		Map<Object, Object> cache = new HashMap<>();
 		for (Long state : states) {
-			statistics.addStateStatistics(state, this.createModel(state).getStatistics());
+			statistics.addStateStatistics(state, this.createModel(state).getStatistics(cache));
 		}
 		
-		// 3. finalize the statistics
+		// 5. finalize the statistics
 		
 		statistics.finish();
 		

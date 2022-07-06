@@ -1,5 +1,6 @@
 package tools.refinery.store.model;
 
+import java.util.Map;
 import java.util.Set;
 
 import tools.refinery.store.map.Cursor;
@@ -19,4 +20,5 @@ public interface Model extends Versioned{
 	ModelDiffCursor getDiffCursor(long to);
 	
 	ModelStatistics getStatistics();
+	ModelStatistics getStatistics(Map<Object, Object> cache);
 }

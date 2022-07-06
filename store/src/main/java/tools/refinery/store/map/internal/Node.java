@@ -132,4 +132,12 @@ public abstract class Node<K, V> {
 	 *                    collects the statistics of the single node.
 	 */
 	public abstract void fillStatistics(VersionedMapStatistics statistics, int level, boolean recursively);
+	
+	/**
+	 * Constructs the part of the statistics calculated from the node and its subnodes.
+	 * @param cache For reusing statistics.
+	 * @param level The level of the node in the tree.
+	 * @return The statistics of the node and its subnodes.
+	 */
+	public abstract VersionedMapStatistics getStatistics(Map<Object, Object> cache, int level);
 }
