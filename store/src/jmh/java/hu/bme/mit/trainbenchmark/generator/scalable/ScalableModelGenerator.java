@@ -25,8 +25,10 @@ import static hu.bme.mit.trainbenchmark.constants.ModelConstants.TARGET;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -74,6 +76,8 @@ public class ScalableModelGenerator extends ModelGenerator {
 	protected final Random positionsRandom = new Random(TrainBenchmarkConstants.RANDOM_SEED);
 	protected final Random sensorsRandom   = new Random(TrainBenchmarkConstants.RANDOM_SEED);
 	protected final Random swpsRandom      = new Random(TrainBenchmarkConstants.RANDOM_SEED);
+	
+	LinkedList<GenerationError> errors = new LinkedList<>();
 
 	public ScalableModelGenerator(final ModelSerializer serializer, int size, Scenario scenario) {
 		super(serializer);
@@ -108,6 +112,8 @@ public class ScalableModelGenerator extends ModelGenerator {
 			throw new UnsupportedOperationException("Scenario not supported.");
 		}
 	}
+	
+	
 
 	@Override
 	protected void constructModel() throws IOException {
@@ -137,7 +143,7 @@ public class ScalableModelGenerator extends ModelGenerator {
 
 			// the semaphoreNeighborErrorPercentage
 			final boolean semaphoreNeighborError1 = semaphoreNeighborRandom.nextInt(PERCENTAGE_BASE) < semaphoreNeighborErrorPercentage;
-			final Object entry = semaphoreNeighborError1 ? null : prevSemaphore;
+			final Object entry = prevSemaphore;
 			final Object exit = semaphore;
 
 			// the entry might be null, therefore we avoid using an ImmutableMap here
@@ -149,6 +155,9 @@ public class ScalableModelGenerator extends ModelGenerator {
 			routeAttributes.put(ACTIVE, true);
 
 			final Object route = serializer.createVertex(ROUTE, routeAttributes, routeOutgoingEdges);
+			if(semaphoreNeighborError1) {
+				this.errors.add(new SemaphoreNeighborError(route,entry));
+			}
 			final Object region = serializer.createVertex(REGION);
 
 			final int swPs = swpsRandom.nextInt(maxSwitchPositions - 1) + 1;
@@ -174,13 +183,16 @@ public class ScalableModelGenerator extends ModelGenerator {
 
 					// add "monitored by" edge from switch to sensor
 					final boolean switchMonitoredError = switchMonitoredRandom.nextInt(PERCENTAGE_BASE) < switchMonitoredErrorPercentage;
+					serializer.createEdge(MONITORED_BY, sw, sensor);
+					if(switchMonitoredError) {
+						this.errors.add(new SwitchMonitorError(sw, sensor));
+					}
+					serializer.createEdge(REQUIRES, route, sensor);
 					if (!switchMonitoredError) {
-						serializer.createEdge(MONITORED_BY, sw, sensor);
-
 						// add "requires" edge from route to sensor
 						final boolean routeSensorError = routeSensorRandom.nextInt(PERCENTAGE_BASE) < routeSensorErrorPercentage;
-						if (!routeSensorError) {
-							serializer.createEdge(REQUIRES, route, sensor);
+						if (routeSensorError) {
+							this.errors.add(new RouteSensorError(route, sensor));
 						}
 					}
 
@@ -196,18 +208,24 @@ public class ScalableModelGenerator extends ModelGenerator {
 
 					// create another extra segment
 					if (connectedSegmentRandom.nextInt(PERCENTAGE_BASE) < connectedSegmentsErrorPercentage) {
-						createSegment(currentTrack, sensor, region);
+						final int segmentLength = lengthRandom.nextInt(MAX_SEGMENT_LENGTH) + 1;
+						this.errors.add(new ConnectedSegmentsError(segmentLength,region,sensor));
 					}
 				}
 
 				// the errorInjectedState may contain a bad value
 				final boolean switchSetError = switchSetRandom.nextInt(PERCENTAGE_BASE) < switchSetErrorPercentage;
-				final int invalidPositionOrdinal = switchSetError ? (numberOfPositions - 1) - positionOrdinal : positionOrdinal;
-				final Position invalidPosition = Position.values()[invalidPositionOrdinal];
+				final Position invalidPosition = Position.values()[positionOrdinal];
+				
 
 				final Map<String, Object> swPAttributes = Map.of(POSITION, invalidPosition);
 				final Map<String, Object> swPOutgoingEdges = Map.of(TARGET, sw);
 				final Object swP = serializer.createVertex(SWITCHPOSITION, swPAttributes, swPOutgoingEdges);
+				if(switchSetError) {
+					int invalidPositionOrdinal = (numberOfPositions - 1) - positionOrdinal;
+					final Position y = Position.values()[invalidPositionOrdinal];
+					errors.add(new SwitchSetError(swP, y));
+				}
 
 				// (route)-[:follows]->(swP)
 				serializer.createEdge(FOLLOWS, route, swP);
@@ -221,8 +239,11 @@ public class ScalableModelGenerator extends ModelGenerator {
 //					continue;
 
 				final boolean routeReachabilityError = routeReachabilityRandom.nextInt(THOUSANDTH_BASE) < routeReachabilityErrorThousandth;
-				if (!routeReachabilityError) {
-					serializer.createEdge(CONNECTS_TO, currentTrack.get(j - 1), current);
+				Object from = currentTrack.get(j - 1);
+				Object to = current;
+				serializer.createEdge(CONNECTS_TO, from, to);
+				if (routeReachabilityError) {
+					this.errors.add(new RouteReachabilityError(from,to));
 				}
 
 //				if (switches.contains(current)) {
@@ -256,13 +277,34 @@ public class ScalableModelGenerator extends ModelGenerator {
 			serializer.endTransaction();
 		}
 	}
+	
+	public List<GenerationError> getErrors() {
+		return errors;
+	}
+	
+	public void shuffleErrors(int randomSeed) {
+		Collections.shuffle(errors, new Random(randomSeed));
+	}
+	
+	public int applyErrors(int number) throws IOException {
+		int removed = 0;
+		while(removed < number && !this.errors.isEmpty()) {
+			this.errors.pop().apply(this.serializer);
+			removed++;
+		}
+		return removed;
+	}
 
-	private Object createSegment(final List<Object> currTracks, final Object sensor, final Object region) throws IOException {
+	Object createSegment(final List<Object> currTracks, final Object sensor, final Object region) throws IOException {
 		final boolean posLengthError = posLengthRandom.nextInt(PERCENTAGE_BASE) < posLengthErrorPercentage;
-		final int segmentLength = (posLengthError ? -1 : 1) * lengthRandom.nextInt(MAX_SEGMENT_LENGTH) + 1;
+		final int segmentLength = lengthRandom.nextInt(MAX_SEGMENT_LENGTH) + 1;
 
 		final Map<String, Object> segmentAttributes = Map.of(LENGTH, segmentLength);
 		final Object segment = serializer.createVertex(SEGMENT, segmentAttributes);
+		
+		if(posLengthError) {
+			this.errors.add(new PosLengthError(segment, -segmentLength));
+		}
 
 		// (region)-[:elements]->(segment)
 		serializer.createEdge(ELEMENTS, region, segment);

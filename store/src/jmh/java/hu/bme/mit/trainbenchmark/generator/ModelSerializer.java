@@ -44,7 +44,11 @@ public abstract class ModelSerializer {
 			final Map<String, Object> outgoingEdges, final Map<String, Object> incomingEdges) throws IOException;
 
 	public abstract void createEdge(String label, Object from, Object to) throws IOException;
-
+	
+	public abstract void removeEdge(String label, Object from, Object to) throws IOException;
+	
+	public abstract void setAttribute(String label, Object object, Object value) throws IOException;
+	
 	public void beginTransaction() throws IOException {
 	};
 

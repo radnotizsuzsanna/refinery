@@ -133,5 +133,24 @@ public class EmfSerializer extends ModelSerializer {
 		final EStructuralFeature feature = clazz.getEStructuralFeature(key);
 		node.eSet(feature, value);
 	}
-
+	
+	@Override
+	public void removeEdge(String label, Object from, Object to) throws IOException {
+		EObject source = (EObject) from;
+		EStructuralFeature feature = source.eClass().getEStructuralFeature(label);
+		if(feature.isMany()) {
+			@SuppressWarnings("unchecked")
+			List<EObject> list = (List<EObject>) source.eGet(feature);
+			list.remove(to);
+		} else {
+			source.eSet(feature, null);
+		}
+	}
+	
+	@Override
+	public void setAttribute(String label, Object object, Object value) throws IOException {
+		EObject source = (EObject) object;
+		EStructuralFeature feature = source.eClass().getEStructuralFeature(label);
+		source.eSet(feature, value);
+	}
 }

@@ -1,10 +1,10 @@
 package hu.bme.mit.trainbenchmark.generator;
 
 import java.io.IOException;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 
 public class CSVSerializer extends ModelSerializer {
 
@@ -32,7 +32,7 @@ public class CSVSerializer extends ModelSerializer {
 	
 	protected final String delim = " ";
 	
-	Set<Object[]> content = new HashSet<>();
+	List<Object[]> content = new ArrayList<>();
 	
 	protected void saveTuple(String symbol, Object... objects) {
 		content.add(new Object[] {symbol,objects});
@@ -60,5 +60,14 @@ public class CSVSerializer extends ModelSerializer {
 	@Override
 	public void createEdge(String label, Object from, Object to) throws IOException {
 		saveTuple(label, from, to);
+	}
+	
+	@Override
+	public void removeEdge(String label, Object from, Object to) throws IOException {
+		throw new UnsupportedOperationException();
+	}
+	@Override
+	public void setAttribute(String label, Object object, Object value) throws IOException {
+		saveTuple(label, object, value);
 	}
 }

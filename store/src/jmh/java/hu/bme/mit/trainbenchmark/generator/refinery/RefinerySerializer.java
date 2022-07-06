@@ -88,7 +88,6 @@ public class RefinerySerializer extends ModelSerializer{
 	}
 	
 	public void print() {
-		System.out.println(this.model.getStatistics().print());
 		System.out.println(this.store.getStatistics().print());
 	}
 	
@@ -126,5 +125,15 @@ public class RefinerySerializer extends ModelSerializer{
 	@Override
 	public void createEdge(String label, Object from, Object to) throws IOException {
 		model.put(dataRepresentations.get(label), Tuple.of((Integer) from, (Integer) to), true);
+	}
+	
+	@Override
+	public void removeEdge(String label, Object from, Object to) throws IOException {
+		model.put(dataRepresentations.get(label), Tuple.of((Integer) from, (Integer) to), false);
+	}
+	
+	@Override
+	public void setAttribute(String label, Object object, Object value) throws IOException {
+		model.put(dataRepresentations.get(label), Tuple.of1((int) object), value);
 	}
 }
