@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
 import org.eclipse.viatra.query.runtime.api.GenericQuerySpecification;
 
 import tools.refinery.store.model.ModelDiffCursor;
@@ -117,7 +118,7 @@ public class QueriableModelStoreImpl implements QueriableModelStore {
 	}
 
 	@Override
-	public synchronized Set<Long> getStates() {
+	public synchronized MutableLongSet getStates() {
 		return this.store.getStates();
 	}
 

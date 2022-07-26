@@ -2,6 +2,8 @@ package tools.refinery.store.query;
 
 import java.util.Set;
 
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+
 import tools.refinery.store.model.ModelDiffCursor;
 import tools.refinery.store.model.ModelStore;
 import tools.refinery.store.model.representation.DataRepresentation;
@@ -18,6 +20,6 @@ public interface QueriableModelStore extends ModelStore{
 	QueriableModel createModel();
 	QueriableModel createModel(long state);
 	
-	Set<Long> getStates();
+	MutableLongSet getStates();
 	ModelDiffCursor getDiffCursor(long from, long to);
 }

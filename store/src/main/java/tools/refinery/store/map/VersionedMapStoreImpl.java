@@ -2,16 +2,14 @@ package tools.refinery.store.map;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.eclipse.collections.api.factory.Maps;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
 
 import tools.refinery.store.map.internal.ImmutableNode;
 import tools.refinery.store.map.internal.MapDiffCursor;
@@ -27,7 +25,7 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 	protected final V defaultValue;
 
 	// Dynamic data
-	protected final Map<Long, ImmutableNode<K, V>> states = createStateSpace();
+	protected final LongObjectHashMap<ImmutableNode<K, V>> states = new LongObjectHashMap<>();
 	protected final Map<Node<K, V>, ImmutableNode<K, V>> nodeCache;
 	protected long nextID = 0;
 
@@ -80,18 +78,15 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 	private static <K,V> Map<Node<K, V>, ImmutableNode<K, V>> createNodeCache() {
 		return new HashMap<>();
 	}
-	private static <K,V> Map<Long, ImmutableNode<K, V>> createStateSpace() {
-		return Maps.mutable.ofInitialCapacity(1000);
-	}
-
+	
 	public static <K, V> List<VersionedMapStore<K, V>> createSharedVersionedMapStores(int amount,
 			ContinousHashProvider<K> hashProvider, V defaultValue) {
 		return createSharedVersionedMapStores(amount, hashProvider, defaultValue, new VersionedMapStoreConfiguration());
 	}
 	
 	@Override
-	public synchronized Set<Long> getStates() {
-		return new HashSet<>(states.keySet());
+	public synchronized MutableLongSet getStates() {
+		return this.states.keySet();
 	}
 
 	@Override
@@ -110,10 +105,8 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 		if (states.containsKey(state)) {
 			return states.get(state);
 		} else {
-			ArrayList<Long> existingKeys = new ArrayList<>(states.keySet());
-			Collections.sort(existingKeys);
 			throw new IllegalArgumentException("Store does not contain state " + state + "! Avaliable states: "
-					+ Arrays.toString(existingKeys.toArray()));
+					+ Arrays.toString(states.toArray()));
 		}
 	}
 
@@ -134,7 +127,7 @@ public class VersionedMapStoreImpl<K, V> implements VersionedMapStore<K, V> {
 		}
 		return id;
 	}
-
+	
 	@Override
 	public DiffCursor<K, V> getDiffCursor(long fromState, long toState) {
 		VersionedMap<K, V> map1 = createMap(fromState);

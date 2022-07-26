@@ -4,16 +4,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.Cursor;
 import tools.refinery.store.map.DiffCursor;
 import tools.refinery.store.map.VersionedMap;
-import tools.refinery.store.map.VersionedMapStatistics;
 import tools.refinery.store.map.internal.MapDiffCursor;
-import tools.refinery.store.map.internal.Node;
 import tools.refinery.store.model.Model;
 import tools.refinery.store.model.ModelDiffCursor;
 import tools.refinery.store.model.ModelStatistics;
@@ -23,11 +19,11 @@ import tools.refinery.store.model.representation.Relation;
 
 public class ModelImpl implements Model {
 	private final ModelStore store;
-	private final SortedMap<DataRepresentation<?, ?>, VersionedMap<?, ?>> maps;
+	private final Map<DataRepresentation<?, ?>, VersionedMap<?, ?>> maps;
 
 	public ModelImpl(ModelStore store, Map<DataRepresentation<?, ?>, VersionedMap<?, ?>> maps) {
 		this.store = store;
-		this.maps = new TreeMap<>(maps);
+		this.maps = new HashMap<>(maps);
 	}
 
 	@Override
@@ -115,6 +111,7 @@ public class ModelImpl implements Model {
 				versionSet = true;
 			}
 		}
+		
 		return version;
 	}
 
