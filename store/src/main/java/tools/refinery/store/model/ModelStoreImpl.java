@@ -7,17 +7,16 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+
 import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.DiffCursor;
 import tools.refinery.store.map.VersionedMap;
-import tools.refinery.store.map.VersionedMapStatistics;
 import tools.refinery.store.map.VersionedMapStore;
 import tools.refinery.store.map.VersionedMapStoreImpl;
 import tools.refinery.store.map.VersionedMapStoreStatistics;
-import tools.refinery.store.map.internal.Node;
 import tools.refinery.store.model.internal.ModelImpl;
-import tools.refinery.store.model.internal.SimilarRelationEquivalenceClass;
-import tools.refinery.store.model.representation.AuxilaryData;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 
@@ -39,24 +38,30 @@ public class ModelStoreImpl implements ModelStore {
 
 	private void initStores(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
 			Set<DataRepresentation<?, ?>> dataRepresentations) {
-		Map<SimilarRelationEquivalenceClass, List<Relation<?>>> symbolRepresentationsPerHashPerArity = new HashMap<>();
-
 		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
-			if (dataRepresentation instanceof Relation<?> symbolRepresentation) {
-				addOrCreate(symbolRepresentationsPerHashPerArity,
-						new SimilarRelationEquivalenceClass(symbolRepresentation), symbolRepresentation);
-			} else if (dataRepresentation instanceof AuxilaryData<?, ?>) {
-				VersionedMapStoreImpl<?, ?> store = new VersionedMapStoreImpl<>(dataRepresentation.getHashProvider(),
-						dataRepresentation.getDefaultValue());
-				result.put(dataRepresentation, store);
-			} else {
-				throw new UnsupportedOperationException(
-						"Model store does not have strategy to use " + dataRepresentation.getClass() + "!");
-			}
+			VersionedMapStoreImpl<?, ?> store = new VersionedMapStoreImpl<>(dataRepresentation.getHashProvider(),
+					dataRepresentation.getDefaultValue());
+			result.put(dataRepresentation, store);
 		}
-		for (List<Relation<?>> symbolGroup : symbolRepresentationsPerHashPerArity.values()) {
-			initRepresentationGroup(result, symbolGroup);
-		}
+		
+//		Map<SimilarRelationEquivalenceClass, List<Relation<?>>> symbolRepresentationsPerHashPerArity = new HashMap<>();
+//
+//		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
+//			if (dataRepresentation instanceof Relation<?> symbolRepresentation) {
+//				addOrCreate(symbolRepresentationsPerHashPerArity,
+//						new SimilarRelationEquivalenceClass(symbolRepresentation), symbolRepresentation);
+//			} else if (dataRepresentation instanceof AuxilaryData<?, ?>) {
+//				VersionedMapStoreImpl<?, ?> store = new VersionedMapStoreImpl<>(dataRepresentation.getHashProvider(),
+//						dataRepresentation.getDefaultValue());
+//				result.put(dataRepresentation, store);
+//			} else {
+//				throw new UnsupportedOperationException(
+//						"Model store does not have strategy to use " + dataRepresentation.getClass() + "!");
+//			}
+//		}
+//		for (List<Relation<?>> symbolGroup : symbolRepresentationsPerHashPerArity.values()) {
+//			initRepresentationGroup(result, symbolGroup);
+//		}
 	}
 
 	private void initRepresentationGroup(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
@@ -107,12 +112,12 @@ public class ModelStoreImpl implements ModelStore {
 	}
 
 	@Override
-	public synchronized Set<Long> getStates() {
+	public synchronized MutableLongSet getStates() {
 		var iterator = stores.values().iterator();
 		if (iterator.hasNext()) {
-			return Set.copyOf(iterator.next().getStates());
+			return iterator.next().getStates();
 		}
-		return Set.of();
+		return new LongHashSet();
 	}
 
 	@Override
@@ -152,13 +157,12 @@ public class ModelStoreImpl implements ModelStore {
 		
 		// 3. get the number of states
 
-		Set<Long> states = this.getStates();
-		statistics.setStates(states.size());
+		statistics.setStates(this.getStates().size());
 		
 		// 4. collect state statistics
 		
 		Map<Object, Object> cache = new HashMap<>();
-		for (Long state : states) {
+		for (Long state : getStates().toArray()) {
 			statistics.addStateStatistics(state, this.createModel(state).getStatistics(cache));
 		}
 		

@@ -1,10 +1,9 @@
 package tools.refinery.store.model;
 
-import java.util.Map;
 import java.util.Set;
 
-import tools.refinery.store.map.VersionedMapStatistics;
-import tools.refinery.store.map.internal.Node;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+
 import tools.refinery.store.model.representation.DataRepresentation;
 
 public interface ModelStore {
@@ -14,7 +13,7 @@ public interface ModelStore {
 	Model createModel();
 	Model createModel(long state);
 	
-	Set<Long> getStates();
+	MutableLongSet getStates();
 	ModelDiffCursor getDiffCursor(long from, long to);
 	
 	ModelStoreStatistics getStatistics();

@@ -65,18 +65,21 @@ public class ModelStoreStatistics {
 	public void finish() {
 		for (int i = 0; i < symbolCollection.size(); i++) {
 			VersionedMapStatistics s = storedNodes.get(i).getNodeCacheStatistics();
-			int node = s.getNumberOfNodesAtLevel().get(0);
-			int entry = s.getNumberOfEntriesAtLevel().get(0);
-			int iChild = s.getNumberOfImmutableNodeChildAtLevel().get(0);
-			int mChild = s.getNumberOfMutableNodeChildAtLevel().get(0);
-			int empty = s.getNumberOfEmptySpacesAtLevel().get(0);
-			int unused = s.getNumberOfAllocatedAndUnusedSpace().get(0);
-			allNodeInStore += node;
-			allEntryInStore += entry;
-			allIChildInStore += iChild;
-			allMChildInStore += mChild;
-			allEmptyInStore += empty;
-			allUnusedInStore += unused;
+			if(!s.getNumberOfNodesAtLevel().isEmpty()) {
+				int node = s.getNumberOfNodesAtLevel().get(0);
+				int entry = s.getNumberOfEntriesAtLevel().get(0);
+				int iChild = s.getNumberOfImmutableNodeChildAtLevel().get(0);
+				int mChild = s.getNumberOfMutableNodeChildAtLevel().get(0);
+				int empty = s.getNumberOfEmptySpacesAtLevel().get(0);
+				int unused = s.getNumberOfAllocatedAndUnusedSpace().get(0);
+				
+				allNodeInStore += node;
+				allEntryInStore += entry;
+				allIChildInStore += iChild;
+				allMChildInStore += mChild;
+				allEmptyInStore += empty;
+				allUnusedInStore += unused;
+			}
 		}
 
 		for(Entry<Long, ModelStatistics> entry1 : this.stateStatistics.entrySet()) {
@@ -130,22 +133,24 @@ public class ModelStoreStatistics {
 		for (int i = 0; i < symbolCollection.size(); i++) {
 			VersionedMapStatistics s = storedNodes.get(i).getNodeCacheStatistics();
 			
-			int node = s.getNumberOfNodesAtLevel().get(0);
-			int entry = s.getNumberOfEntriesAtLevel().get(0);
-			int iChild = s.getNumberOfImmutableNodeChildAtLevel().get(0);
-			int mChild = s.getNumberOfMutableNodeChildAtLevel().get(0);
-			int empty = s.getNumberOfEmptySpacesAtLevel().get(0);
-			int unused = s.getNumberOfAllocatedAndUnusedSpace().get(0);
-			
-			addLine(result,
-				i,
-				node,
-				entry,
-				iChild,
-				mChild,
-				empty,
-				unused,
-				symbolCollection.get(i));
+			if(!s.getNumberOfNodesAtLevel().isEmpty()) {
+				int node = s.getNumberOfNodesAtLevel().get(0);
+				int entry = s.getNumberOfEntriesAtLevel().get(0);
+				int iChild = s.getNumberOfImmutableNodeChildAtLevel().get(0);
+				int mChild = s.getNumberOfMutableNodeChildAtLevel().get(0);
+				int empty = s.getNumberOfEmptySpacesAtLevel().get(0);
+				int unused = s.getNumberOfAllocatedAndUnusedSpace().get(0);
+				
+				addLine(result,
+					i,
+					node,
+					entry,
+					iChild,
+					mChild,
+					empty,
+					unused,
+					symbolCollection.get(i));
+			}
 		}
 		addLine(result,
 				"sum",
