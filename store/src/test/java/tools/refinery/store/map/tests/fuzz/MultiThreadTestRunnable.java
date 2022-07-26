@@ -1,6 +1,7 @@
 package tools.refinery.store.map.tests.fuzz;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -87,7 +88,11 @@ public class MultiThreadTestRunnable implements Runnable {
 				MapTestEnvironment.compareTwoMaps(scenario + ":" + index, reference, versioned,errors);
 				
 				// go back to a random state (probably created by another thread)
-				List<Long> states = new ArrayList<>(store.getStates());
+				
+				List<Long> states = new ArrayList<>();
+				for (Long long1 : store.getStates().toArray()) {
+					states.add(long1);
+				}
 				Collections.shuffle(states, r2);
 				for(Long state : states.subList(0, Math.min(states.size(), 100))) {
 					versioned.restore(state);
