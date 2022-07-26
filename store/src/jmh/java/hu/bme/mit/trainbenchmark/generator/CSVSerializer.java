@@ -23,12 +23,6 @@ public class CSVSerializer extends ModelSerializer {
 		// TODO Auto-generated method stub
 		
 	}
-
-	@Override
-	public void persistModel() throws Exception {
-		// TODO Auto-generated method stub
-		
-	}
 	
 	protected final String delim = " ";
 	
@@ -69,5 +63,16 @@ public class CSVSerializer extends ModelSerializer {
 	@Override
 	public void setAttribute(String label, Object object, Object value) throws IOException {
 		saveTuple(label, object, value);
+	}
+
+	@Override
+	public long commit() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	@Override
+	public void restore(long version) {
+		// TODO Auto-generated method stub
+		
 	}
 }

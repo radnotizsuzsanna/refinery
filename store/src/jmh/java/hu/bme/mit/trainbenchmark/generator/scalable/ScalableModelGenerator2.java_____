@@ -41,16 +41,16 @@ import hu.bme.mit.trainbenchmark.generator.ModelGenerator;
 import hu.bme.mit.trainbenchmark.generator.ModelSerializer;
 import hu.bme.mit.trainbenchmark.generator.Scenario;
 
-public class ScalableModelGenerator extends ModelGenerator {
+public class ScalableModelGenerator2 extends ModelGenerator {
 
 	protected static final int MAX_SEGMENT_LENGTH = 1000;
 	protected static final int PERCENTAGE_BASE = 100;
 	protected static final int THOUSANDTH_BASE = 1000;
 
-	protected final int maxSegments;
-	protected final int maxRoutes;
-	protected final int maxSwitchPositions;
-	protected final int maxSensors;
+	protected int maxSegments = 5;
+	protected int maxRoutes;
+	protected int maxSwitchPositions = 20;
+	protected int maxSensors = 10;
 
 	protected int connectedSegmentsErrorPercentage = 0;
 	protected int posLengthErrorPercentage         = 0;
@@ -78,20 +78,10 @@ public class ScalableModelGenerator extends ModelGenerator {
 	protected final Random swpsRandom      = new Random(TrainBenchmarkConstants.RANDOM_SEED);
 	
 	LinkedList<GenerationError> errors = new LinkedList<>();
-	
-	public static boolean inverseConnectsTo = true;
-	private final int commitAfterBuildActions;
-	private int actions;
 
-	public ScalableModelGenerator(final ModelSerializer serializer, int size, int width, Scenario scenario, int commitAfterBuildActions) {
+	public ScalableModelGenerator2(final ModelSerializer serializer, int size, Scenario scenario) {
 		super(serializer);
-		
-		maxSegments = 5 * width;
-		maxRoutes = 5 * size * width;
-		maxSwitchPositions = 20 * width;
-		maxSensors = 10 * width;
-		
-		this.commitAfterBuildActions = commitAfterBuildActions;
+		maxRoutes = 5 * size;
 		switch (scenario) {
 		case BATCH:
 			// set all error percents to 0
@@ -106,17 +96,6 @@ public class ScalableModelGenerator extends ModelGenerator {
 			activeRouteErrorPercentage       = 10;
 			routeLengthErrorPercentage       = 10;
 			routeReachabilityErrorThousandth =  2;
-			break;
-		case INJECTX:
-			connectedSegmentsErrorPercentage =  80;
-			posLengthErrorPercentage         =  0;
-			routeSensorErrorPercentage       =  0;
-			semaphoreNeighborErrorPercentage =  0;
-			switchMonitoredErrorPercentage   =  0;
-			switchSetErrorPercentage         =  0;
-			activeRouteErrorPercentage       = 0;
-			routeLengthErrorPercentage       = 0;
-			routeReachabilityErrorThousandth =  0;
 			break;
 		case REPAIR:
 			connectedSegmentsErrorPercentage =  5;
@@ -134,16 +113,8 @@ public class ScalableModelGenerator extends ModelGenerator {
 		}
 	}
 	
-	protected void actionPerformed() {
-		if (commitAfterBuildActions > 0) {
-			actions++;
-			if (actions > commitAfterBuildActions) {
-				this.serializer.commit();
-				actions = 0;
-			}
-		}
-	}
 	
+
 	@Override
 	protected void constructModel() throws IOException {
 		Object prevSemaphore = null;
@@ -157,7 +128,6 @@ public class ScalableModelGenerator extends ModelGenerator {
 				final Map<String, Object> semaphoreAttributes = Map.of(SIGNAL, Signal.GO);
 
 				prevSemaphore = serializer.createVertex(SEMAPHORE, semaphoreAttributes);
-				actionPerformed();
 				firstSemaphore = prevSemaphore;
 			}
 
@@ -165,7 +135,6 @@ public class ScalableModelGenerator extends ModelGenerator {
 			if (i != maxRoutes - 1) {
 				final Map<String, Object> semaphoreAttributes = Map.of(SIGNAL, Signal.GO);
 				semaphore = serializer.createVertex(SEMAPHORE, semaphoreAttributes);
-				actionPerformed();
 			} else {
 				semaphore = firstSemaphore;
 			}
@@ -184,14 +153,10 @@ public class ScalableModelGenerator extends ModelGenerator {
 			routeAttributes.put(ACTIVE, true);
 
 			final Object route = serializer.createVertex(ROUTE, routeAttributes, routeOutgoingEdges);
-			actionPerformed();
-			
 			if(semaphoreNeighborError1) {
 				this.errors.add(new SemaphoreNeighborError(route,entry));
 			}
-			
 			final Object region = serializer.createVertex(REGION);
-			actionPerformed();
 
 			final int swPs = swpsRandom.nextInt(maxSwitchPositions - 1) + 1;
 			final List<Object> currentTrack = new ArrayList<>();
@@ -202,32 +167,25 @@ public class ScalableModelGenerator extends ModelGenerator {
 				final Position position = Position.values()[positionOrdinal];
 				final Map<String, ? extends Object> swAttributes = Map.of(CURRENTPOSITION, position);
 				final Object sw = serializer.createVertex(SWITCH, swAttributes);
-				actionPerformed();
 				currentTrack.add(sw);
 				switches.add(sw);
 
 				// (region)-[:elements]->(sw)
 				serializer.createEdge(ELEMENTS, region, sw);
-				actionPerformed();
 
 				final int sensors = sensorsRandom.nextInt(maxSensors - 1) + 1;
 
 				for (int k = 0; k < sensors; k++) {
 					final Object sensor = serializer.createVertex(SENSOR);
 					serializer.createEdge(SENSORS, region, sensor);
-					actionPerformed();
 
 					// add "monitored by" edge from switch to sensor
 					final boolean switchMonitoredError = switchMonitoredRandom.nextInt(PERCENTAGE_BASE) < switchMonitoredErrorPercentage;
 					serializer.createEdge(MONITORED_BY, sw, sensor);
-					actionPerformed();
-					
 					if(switchMonitoredError) {
 						this.errors.add(new SwitchMonitorError(sw, sensor));
 					}
 					serializer.createEdge(REQUIRES, route, sensor);
-					actionPerformed();
-					
 					if (!switchMonitoredError) {
 						// add "requires" edge from route to sensor
 						final boolean routeSensorError = routeSensorRandom.nextInt(PERCENTAGE_BASE) < routeSensorErrorPercentage;
@@ -242,7 +200,6 @@ public class ScalableModelGenerator extends ModelGenerator {
 
 						if (firstSegment) {
 							serializer.createEdge(SEMAPHORES, segment, semaphore);
-							actionPerformed();
 							firstSegment = false;
 						}
 					}
@@ -262,8 +219,6 @@ public class ScalableModelGenerator extends ModelGenerator {
 				final Map<String, Object> swPAttributes = Map.of(POSITION, invalidPosition);
 				final Map<String, Object> swPOutgoingEdges = Map.of(TARGET, sw);
 				final Object swP = serializer.createVertex(SWITCHPOSITION, swPAttributes, swPOutgoingEdges);
-				actionPerformed();
-				
 				if(switchSetError) {
 					int invalidPositionOrdinal = (numberOfPositions - 1) - positionOrdinal;
 					final Position y = Position.values()[invalidPositionOrdinal];
@@ -272,7 +227,6 @@ public class ScalableModelGenerator extends ModelGenerator {
 
 				// (route)-[:follows]->(swP)
 				serializer.createEdge(FOLLOWS, route, swP);
-				actionPerformed();
 			}
 
 //			final Set<Integer> usedTracks = new HashSet<>();
@@ -286,12 +240,6 @@ public class ScalableModelGenerator extends ModelGenerator {
 				Object from = currentTrack.get(j - 1);
 				Object to = current;
 				serializer.createEdge(CONNECTS_TO, from, to);
-				actionPerformed();
-				
-				if(inverseConnectsTo) {
-					serializer.createEdge(CONNECTS_TO, to, from);
-					actionPerformed();
-				}
 				if (routeReachabilityError) {
 					this.errors.add(new RouteReachabilityError(from,to));
 				}
@@ -308,23 +256,12 @@ public class ScalableModelGenerator extends ModelGenerator {
 
 			if (prevTracks != null && prevTracks.size() > 0 && currentTrack.size() > 0) {
 				serializer.createEdge(CONNECTS_TO, prevTracks.get(prevTracks.size() - 1), currentTrack.get(0));
-				actionPerformed();
-				
-				if(inverseConnectsTo) {
-					serializer.createEdge(CONNECTS_TO, currentTrack.get(0), prevTracks.get(prevTracks.size() - 1));
-					actionPerformed();
-				}
 			}
 
 			// loop the last track element of the last route to the first track element of the first route
 			if (i == maxRoutes - 1) {
 				if (currentTrack != null && currentTrack.size() > 0 && firstTracks.size() > 0) {
 					serializer.createEdge(CONNECTS_TO, currentTrack.get(currentTrack.size() - 1), firstTracks.get(0));
-					actionPerformed();
-					if(inverseConnectsTo) {
-						serializer.createEdge(CONNECTS_TO, firstTracks.get(0), currentTrack.get(currentTrack.size() - 1));
-						actionPerformed();
-					}
 				}
 			}
 
@@ -345,10 +282,13 @@ public class ScalableModelGenerator extends ModelGenerator {
 		Collections.shuffle(errors, new Random(randomSeed));
 	}
 	
-	public void applyErrors(int from, int to) throws IOException {
-		for(int i = from; i<to; i++) {
-			this.errors.get(i).apply(serializer);
+	public int applyErrors(int number) throws IOException {
+		int removed = 0;
+		while(removed < number && !this.errors.isEmpty()) {
+			this.errors.pop().apply(this.serializer);
+			removed++;
 		}
+		return removed;
 	}
 
 	Object createSegment(final List<Object> currTracks, final Object sensor, final Object region) throws IOException {
@@ -357,7 +297,6 @@ public class ScalableModelGenerator extends ModelGenerator {
 
 		final Map<String, Object> segmentAttributes = Map.of(LENGTH, segmentLength);
 		final Object segment = serializer.createVertex(SEGMENT, segmentAttributes);
-		actionPerformed();
 		
 		if(posLengthError) {
 			this.errors.add(new PosLengthError(segment, -segmentLength));
@@ -365,11 +304,9 @@ public class ScalableModelGenerator extends ModelGenerator {
 
 		// (region)-[:elements]->(segment)
 		serializer.createEdge(ELEMENTS, region, segment);
-		actionPerformed();
 
 		// (segment)-[:monitoredBy]->(sensor) monitoredBy n:m edge
 		serializer.createEdge(MONITORED_BY, segment, sensor);
-		actionPerformed();
 		currTracks.add(segment);
 		return segment;
 	}

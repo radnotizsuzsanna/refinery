@@ -28,7 +28,7 @@ public interface RailwayElement extends EObject {
 	 * @return the value of the '<em>Id</em>' attribute.
 	 * @see #setId(int)
 	 * @see hu.bme.mit.trainbenchmark.railway.RailwayPackage#getRailwayElement_Id()
-	 * @model unique="false"
+	 * @model unique="false" id="true"
 	 * @generated
 	 */
 	int getId();

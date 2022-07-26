@@ -15,8 +15,6 @@ public abstract class ModelSerializer {
 
 	public abstract void initModel() throws IOException;
 
-	public abstract void persistModel() throws Exception;
-
 	// the createVertex() methods with fewer arguments are final
 
 	public final Object createVertex(final String type) throws IOException {
@@ -49,10 +47,7 @@ public abstract class ModelSerializer {
 	
 	public abstract void setAttribute(String label, Object object, Object value) throws IOException;
 	
-	public void beginTransaction() throws IOException {
-	};
-
-	public void endTransaction() throws IOException {
-	};
+	public abstract long commit();
+	public abstract void restore(long version);
 
 }

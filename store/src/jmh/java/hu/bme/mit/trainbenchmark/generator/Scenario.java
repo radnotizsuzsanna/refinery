@@ -14,6 +14,7 @@ package hu.bme.mit.trainbenchmark.generator;
 public enum Scenario {
 	BATCH("Batch"), //
 	INJECT("Inject"), //
+	INJECTX("InjectX"),
 	REPAIR("Repair"), //
 	MINIMAL("Minimal");
 

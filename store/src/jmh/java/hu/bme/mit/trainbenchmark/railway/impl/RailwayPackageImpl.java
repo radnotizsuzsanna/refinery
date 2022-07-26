@@ -587,7 +587,7 @@ public class RailwayPackageImpl extends EPackageImpl implements RailwayPackage {
 
 		// Initialize classes, features, and operations; add parameters
 		initEClass(railwayElementEClass, RailwayElement.class, "RailwayElement", IS_ABSTRACT, !IS_INTERFACE, IS_GENERATED_INSTANCE_CLASS);
-		initEAttribute(getRailwayElement_Id(), ecorePackage.getEInt(), "id", null, 0, 1, RailwayElement.class, !IS_TRANSIENT, !IS_VOLATILE, IS_CHANGEABLE, !IS_UNSETTABLE, !IS_ID, !IS_UNIQUE, !IS_DERIVED, IS_ORDERED);
+		initEAttribute(getRailwayElement_Id(), ecorePackage.getEInt(), "id", null, 0, 1, RailwayElement.class, !IS_TRANSIENT, !IS_VOLATILE, IS_CHANGEABLE, !IS_UNSETTABLE, IS_ID, !IS_UNIQUE, !IS_DERIVED, IS_ORDERED);
 
 		initEClass(railwayContainerEClass, RailwayContainer.class, "RailwayContainer", !IS_ABSTRACT, !IS_INTERFACE, IS_GENERATED_INSTANCE_CLASS);
 		initEReference(getRailwayContainer_Routes(), this.getRoute(), null, "routes", null, 0, -1, RailwayContainer.class, !IS_TRANSIENT, !IS_VOLATILE, IS_CHANGEABLE, IS_COMPOSITE, !IS_RESOLVE_PROXIES, !IS_UNSETTABLE, IS_UNIQUE, !IS_DERIVED, IS_ORDERED);

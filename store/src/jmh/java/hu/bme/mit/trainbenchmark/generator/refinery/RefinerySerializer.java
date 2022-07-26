@@ -12,14 +12,15 @@ import tools.refinery.store.model.Model;
 import tools.refinery.store.model.ModelStore;
 import tools.refinery.store.model.ModelStoreImpl;
 import tools.refinery.store.model.Tuple;
+import tools.refinery.store.model.Tuple.Tuple1;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 
 public class RefinerySerializer extends ModelSerializer{
 
 	Map<String, DataRepresentation<Tuple, Object>> dataRepresentations;
-	private ModelStore store = null;
-	private Model model = null;
+	protected ModelStore store = null;
+	protected Model model = null;
 	
 	public RefinerySerializer() {
 		dataRepresentations = new HashMap<>();
@@ -72,28 +73,20 @@ public class RefinerySerializer extends ModelSerializer{
 	}
 
 
-	private void initType(Map<String, DataRepresentation<Tuple, Object>> dataRepresentations, String name) {
+	protected void initType(Map<String, DataRepresentation<Tuple, Object>> dataRepresentations, String name) {
 		dataRepresentations.put(name, new Relation<Object>(name, 1, false));
 	}
-	private void initReference(Map<String, DataRepresentation<Tuple, Object>> dataRepresentations, String name) {
+	protected void initReference(Map<String, DataRepresentation<Tuple, Object>> dataRepresentations, String name) {
 		dataRepresentations.put(name, new Relation<Object>(name, 2, false));
 	}
-	private void initAttriubte(Map<String, DataRepresentation<Tuple, Object>> dataRepresentations, String name, Object defaultValue) {
+	protected void initAttriubte(Map<String, DataRepresentation<Tuple, Object>> dataRepresentations, String name, Object defaultValue) {
 		dataRepresentations.put(name, new Relation<>(name, 1, defaultValue));
 	}
 
-	@Override
-	public void persistModel() throws Exception {
-		
-	}
-	
 	public void print() {
 		System.out.println(this.store.getStatistics().print());
 	}
 	
-	public void commit() {
-		this.model.commit();
-	}
 	public void getHash() {
 		this.model.hashCode();
 	}
@@ -101,39 +94,53 @@ public class RefinerySerializer extends ModelSerializer{
 	@Override
 	public Object createVertex(int id, String type, Map<String, ? extends Object> attributes,
 			Map<String, Object> outgoingEdges, Map<String, Object> incomingEdges) throws IOException {
+		Tuple1 vertex = Tuple.of1(id);
+		
 		// 1. add to type map
-		model.put(dataRepresentations.get(type), Tuple.of1(id), true);
-		if(type.equals(ModelConstants.SEGMENT) || type.equals(ModelConstants.SWITCH)) {
-			model.put(dataRepresentations.get(ModelConstants.TRACKELEMENT), Tuple.of1(id), true);
-		}
+		model.put(dataRepresentations.get(type), vertex, true);
+//		if(type.equals(ModelConstants.SEGMENT) || type.equals(ModelConstants.SWITCH)) {
+//			model.put(dataRepresentations.get(ModelConstants.TRACKELEMENT), Tuple.of1(id), true);
+//		}
 		// 2. set attributes
 		for(Entry<String, ? extends Object> attribute : attributes.entrySet()) {
-			model.put(dataRepresentations.get(attribute.getKey()), Tuple.of(id), attribute.getValue());
+			model.put(dataRepresentations.get(attribute.getKey()), vertex, attribute.getValue());
 		}
 		// 3. outgoing edges
 		for(Entry<String, ? extends Object> outgoing : outgoingEdges.entrySet()) {
-			model.put(dataRepresentations.get(outgoing.getKey()), Tuple.of(id,(Integer) outgoing.getValue()), true);
+			this.createEdge(outgoing.getKey(), vertex, outgoing.getValue());
 		}
 		// 4. incoming edges
 		for(Entry<String, ? extends Object> incoming : incomingEdges.entrySet()) {
-			model.put(dataRepresentations.get(incoming.getKey()), Tuple.of((Integer) incoming.getValue(), id), true);
+			this.createEdge(incoming.getKey(), incoming.getValue(), vertex);
 		}
 		// finish
-		return id;
+		return vertex;
 	}
 
 	@Override
 	public void createEdge(String label, Object from, Object to) throws IOException {
-		model.put(dataRepresentations.get(label), Tuple.of((Integer) from, (Integer) to), true);
+		model.put(dataRepresentations.get(label), Tuple.of(((Tuple1) from).get(0), ((Tuple1) to).get(0)), true);
 	}
 	
 	@Override
 	public void removeEdge(String label, Object from, Object to) throws IOException {
-		model.put(dataRepresentations.get(label), Tuple.of((Integer) from, (Integer) to), false);
+		model.put(dataRepresentations.get(label), Tuple.of(((Tuple1) from).get(0), ((Tuple1) to).get(0)), false);
 	}
 	
 	@Override
 	public void setAttribute(String label, Object object, Object value) throws IOException {
-		model.put(dataRepresentations.get(label), Tuple.of1((int) object), value);
+		model.put(dataRepresentations.get(label), (Tuple1)object, value);
+	}
+	
+	@Override
+	public long commit() {
+		long res = this.model.commit();
+		//print();
+		return res;
+		
+	}
+	@Override
+	public void restore(long version) {
+		this.model.restore(version);
 	}
 }

@@ -14,7 +14,6 @@ public abstract class ModelGenerator {
 	public void generateModel() throws Exception {
 		serializer.initModel();
 		constructModel();
-		serializer.persistModel();
 	}
 
 	protected abstract void constructModel() throws FileNotFoundException, IOException;
