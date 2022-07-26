@@ -33,10 +33,7 @@ public class Relation<D> extends DataRepresentation<Tuple, D> {
 
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + Objects.hash(arity, name);
-		return result;
+		return name.hashCode();
 	}
 
 	@Override
