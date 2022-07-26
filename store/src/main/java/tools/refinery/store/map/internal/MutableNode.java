@@ -117,7 +117,7 @@ public class MutableNode<K, V> extends Node<K, V> {
 				int newDepth = incrementDepth(depth);
 				var newNode = nodeCandidate.putValue(key, value, oldValueBox, hashProvider, defaultValue,
 						newHash(hashProvider, key, hash, newDepth), newDepth);
-				return updateWithSubNode(selectedHashFragment, newNode, value.equals(defaultValue));
+				return updateWithSubNode(selectedHashFragment, newNode, (value==null&&defaultValue==null) || value.equals(defaultValue));
 			} else {
 				// If it does not have value, put it in the empty place
 				if (value == defaultValue) {
@@ -455,7 +455,17 @@ public class MutableNode<K, V> extends Node<K, V> {
 		if (obj == null)
 			return false;
 		if (obj instanceof MutableNode<?, ?> mutableObj) {
-			return Arrays.deepEquals(this.content, mutableObj.content);
+			if(obj.hashCode() != this.hashCode()) {
+				return false;
+			} else {
+				for(int i = 0; i<FACTOR*2; i++) {
+					Object thisContent = this.content[i];
+					if(thisContent != null && !thisContent.equals(mutableObj.content[i])) {
+						return false;
+					}
+				}
+				return true;
+			}
 		} else if (obj instanceof ImmutableNode<?, ?> immutableObj) {
 			return ImmutableNode.compareImmutableMutable(immutableObj, this);
 		} else {

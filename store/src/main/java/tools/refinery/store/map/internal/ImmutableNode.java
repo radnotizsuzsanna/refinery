@@ -180,7 +180,7 @@ public class ImmutableNode<K, V> extends Node<K, V> {
 				return this;
 			} else {
 				MutableNode<K, V> mutable = toMutable();
-				return mutable.updateWithSubNode(selectedHashFragment, newsubNode, value.equals(defaultValue));
+				return mutable.updateWithSubNode(selectedHashFragment, newsubNode, (value==null&&defaultValue==null) || value.equals(defaultValue));
 			}
 		} else {
 			// add new key + value
