@@ -14,9 +14,13 @@ import tools.refinery.store.map.ContinousHashProvider;
 import tools.refinery.store.map.DiffCursor;
 import tools.refinery.store.map.VersionedMap;
 import tools.refinery.store.map.VersionedMapStore;
+import tools.refinery.store.map.VersionedMapStoreConfiguration;
+import tools.refinery.store.map.VersionedMapStoreDeltaImpl;
 import tools.refinery.store.map.VersionedMapStoreImpl;
 import tools.refinery.store.map.VersionedMapStoreStatistics;
 import tools.refinery.store.model.internal.ModelImpl;
+import tools.refinery.store.model.internal.SimilarRelationEquivalenceClass;
+import tools.refinery.store.model.representation.AuxilaryData;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 
@@ -25,44 +29,70 @@ public class ModelStoreImpl implements ModelStore {
 	private final Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores;
 
 	public ModelStoreImpl(Set<DataRepresentation<?, ?>> dataRepresentations) {
-		stores = new HashMap<>();
-		initStores(stores, dataRepresentations);
+		this(dataRepresentations, ModelStoreConfig.defaultConfig);
 	}
 
-	public ModelStoreImpl(List<Set<DataRepresentation<?, ?>>> dataRepresentationGroup) {
+	public ModelStoreImpl(Set<DataRepresentation<?, ?>> dataRepresentations, ModelStoreConfig config) {
 		stores = new HashMap<>();
-		for (Set<DataRepresentation<?, ?>> set : dataRepresentationGroup) {
-			initStores(stores, set);
-		}
+		initStores(stores, dataRepresentations, config);
 	}
 
 	private void initStores(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
+			Set<DataRepresentation<?, ?>> dataRepresentations, ModelStoreConfig config) {
+		if (config.stateBasedConfig == null) {
+			initDeltaStores(result, dataRepresentations);
+		}
+		else {
+			initStateBasedStores(result, dataRepresentations, config);
+		}
+	}
+	
+	private void initDeltaStores(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
 			Set<DataRepresentation<?, ?>> dataRepresentations) {
 		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
-			VersionedMapStoreImpl<?, ?> store = new VersionedMapStoreImpl<>(dataRepresentation.getHashProvider(),
+			final VersionedMapStore<?, ?> store = new VersionedMapStoreDeltaImpl<>(
 					dataRepresentation.getDefaultValue());
 			result.put(dataRepresentation, store);
 		}
-		
-//		Map<SimilarRelationEquivalenceClass, List<Relation<?>>> symbolRepresentationsPerHashPerArity = new HashMap<>();
-//
-//		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
-//			if (dataRepresentation instanceof Relation<?> symbolRepresentation) {
-//				addOrCreate(symbolRepresentationsPerHashPerArity,
-//						new SimilarRelationEquivalenceClass(symbolRepresentation), symbolRepresentation);
-//			} else if (dataRepresentation instanceof AuxilaryData<?, ?>) {
-//				VersionedMapStoreImpl<?, ?> store = new VersionedMapStoreImpl<>(dataRepresentation.getHashProvider(),
-//						dataRepresentation.getDefaultValue());
-//				result.put(dataRepresentation, store);
-//			} else {
-//				throw new UnsupportedOperationException(
-//						"Model store does not have strategy to use " + dataRepresentation.getClass() + "!");
-//			}
-//		}
-//		for (List<Relation<?>> symbolGroup : symbolRepresentationsPerHashPerArity.values()) {
-//			initRepresentationGroup(result, symbolGroup);
-//		}
 	}
+
+	private void initStateBasedStores(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
+			Set<DataRepresentation<?, ?>> dataRepresentations, ModelStoreConfig config) {
+		VersionedMapStoreConfiguration stateBasedConfig = config.stateBasedConfig;
+		if(stateBasedConfig.isSharedNodeCacheInStoreGroups()) {
+			// initialize groups
+			Map<SimilarRelationEquivalenceClass, List<Relation<?>>> symbolRepresentationsPerHashPerArity = new HashMap<>();
+			
+			// fill groups with similar data representations
+			for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
+				if (dataRepresentation instanceof Relation<?> symbolRepresentation) {
+					addOrCreate(symbolRepresentationsPerHashPerArity,
+							new SimilarRelationEquivalenceClass(symbolRepresentation), symbolRepresentation);
+				} else if (dataRepresentation instanceof AuxilaryData<?, ?>) {
+					VersionedMapStoreImpl<?, ?> store = new VersionedMapStoreImpl<>(dataRepresentation.getHashProvider(),
+							dataRepresentation.getDefaultValue());
+					result.put(dataRepresentation, store);
+				} else {
+					throw new UnsupportedOperationException(
+							"Model store does not have strategy to use " + dataRepresentation.getClass() + "!");
+				}
+			}
+			
+			// construct groups
+			for (List<Relation<?>> symbolGroup : symbolRepresentationsPerHashPerArity.values()) {
+				initRepresentationGroup(result, symbolGroup);
+			}
+		} else {
+			// create individual groups
+			for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
+				final VersionedMapStore<?, ?> store = new VersionedMapStoreImpl<>(dataRepresentation.getHashProvider(),
+							dataRepresentation.getDefaultValue(), config.stateBasedConfig);
+				result.put(dataRepresentation, store);
+			}
+		}
+	}
+
+
 
 	private void initRepresentationGroup(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
 			List<Relation<?>> symbolGroup) {
@@ -154,22 +184,22 @@ public class ModelStoreImpl implements ModelStore {
 		for (Entry<VersionedMapStoreStatistics, String> statisticsGroup : statistics2Name.entrySet()) {
 			statistics.addStoreStatistics(statisticsGroup.getValue(), statisticsGroup.getKey());
 		}
-		
+
 		// 3. get the number of states
 
 		statistics.setStates(this.getStates().size());
-		
+
 		// 4. collect state statistics
-		
+
 		Map<Object, Object> cache = new HashMap<>();
 		for (Long state : getStates().toArray()) {
 			statistics.addStateStatistics(state, this.createModel(state).getStatistics(cache));
 		}
-		
+
 		// 5. finalize the statistics
-		
+
 		statistics.finish();
-		
+
 		return statistics;
 	}
 }
