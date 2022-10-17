@@ -26,7 +26,7 @@ import tools.refinery.store.model.representation.Relation;
 
 public class ModelStoreImpl implements ModelStore {
 
-	private final Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores;
+	final Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores;
 
 	public ModelStoreImpl(Set<DataRepresentation<?, ?>> dataRepresentations) {
 		this(dataRepresentations, ModelStoreConfig.defaultConfig);
@@ -46,7 +46,7 @@ public class ModelStoreImpl implements ModelStore {
 			initStateBasedStores(result, dataRepresentations, config);
 		}
 	}
-	
+
 	private void initDeltaStores(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
 			Set<DataRepresentation<?, ?>> dataRepresentations) {
 		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
@@ -62,7 +62,7 @@ public class ModelStoreImpl implements ModelStore {
 		if(stateBasedConfig.isSharedNodeCacheInStoreGroups()) {
 			// initialize groups
 			Map<SimilarRelationEquivalenceClass, List<Relation<?>>> symbolRepresentationsPerHashPerArity = new HashMap<>();
-			
+
 			// fill groups with similar data representations
 			for (DataRepresentation<?, ?> dataRepresentation : dataRepresentations) {
 				if (dataRepresentation instanceof Relation<?> symbolRepresentation) {
@@ -77,7 +77,7 @@ public class ModelStoreImpl implements ModelStore {
 							"Model store does not have strategy to use " + dataRepresentation.getClass() + "!");
 				}
 			}
-			
+
 			// construct groups
 			for (List<Relation<?>> symbolGroup : symbolRepresentationsPerHashPerArity.values()) {
 				initRepresentationGroup(result, symbolGroup);
