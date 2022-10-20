@@ -15,11 +15,11 @@ import tools.refinery.store.map.internal.VersionedMapDeltaImpl;
 public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>{
 	// Static data
 	protected final V defaultValue;
-	
+
 	// Dynamic data
 	protected final LongObjectHashMap<MapTransaction<K, V>> states = new LongObjectHashMap<>();
 	protected long nextID = 0;
-		
+
 	public VersionedMapStoreDeltaImpl(V defaultValue) {
 		super();
 		this.defaultValue = defaultValue;
@@ -36,7 +36,7 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 		result.restore(state);
 		return result;
 	}
-	
+
 	public synchronized MapTransaction<K, V> appendTransaction(MapDelta<K, V>[] deltas, MapTransaction<K, V> previous, long[] versionContainer) {
 		long version = nextID++;
 		versionContainer[0] = version;
@@ -49,11 +49,17 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 			return transaction;
 		}
 	}
-	
-	private synchronized MapTransaction<K,V> getState(long state) {
+
+	//TODO ideiglenes
+	public synchronized MapTransaction<K,V> getState(long state) {
 		return states.get(state);
 	}
-	
+
+	//TODO ideiglenes
+	public V getDefaultValue(){
+		return defaultValue;
+	}
+
 	public void getPath(long to, List<MapDelta<K, V>[]> forwardTransactions) {
 		MapTransaction<K,V> toTransaction = getState(to);
 		while(toTransaction != null) {
@@ -61,7 +67,7 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 			toTransaction = toTransaction.parent();
 		}
 	}
-	
+
 	public void getPath(long from, long to,
 			List<MapDelta<K, V>[]> backwardTransactions,
 			List<MapDelta<K, V>[]> forwardTransactions)
@@ -78,8 +84,8 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 			}
 		}
 	}
-	
-	
+
+
 	@Override
 	public synchronized MutableLongSet getStates() {
 		return states.keySet();
