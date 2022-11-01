@@ -151,9 +151,6 @@ public class ModelSerializer {
 				System.out.println("\t\t\tWriting newValue: " + newValue);
 			}
 		}
-
 		return null;
 	}
-
-
 }

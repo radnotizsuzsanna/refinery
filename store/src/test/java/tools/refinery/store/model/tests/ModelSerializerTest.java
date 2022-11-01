@@ -48,7 +48,6 @@ class ModelSerializerTest {
 			throw new RuntimeException(e);
 		}
 
-
 		//Deserializes the ModelStore
 		ModelStore store2 = new ModelStoreImpl(Set.of(person, /*age,*/ friend));
 		try {
