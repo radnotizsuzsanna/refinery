@@ -134,21 +134,16 @@ public class ModelSerializer {
 			System.out.println("\t\tWriting number of deltas: " + num);
 
 			for(int j = 0; j < num; j++){
-				//TODO ezt a többi esetre hogyan? vagy nem kell?
-				if(tupleLength == 1){
-					int in = data.readInt();
-					Tuple tuple = Tuple.of(in);
-					System.out.println("\t\t\tWriting key: (" + tuple + ")");
-				}
-				else if(tupleLength == 2){
-					int in1 = data.readInt();
-					int in2 = data.readInt();
-					Tuple tuple = Tuple.of(in1, in2);
-					System.out.println("\t\t\tWriting key: (" + tuple.get(0) + " " + tuple.get(0) + ")");
-				}
-				else throw new UnsupportedOperationException(
-						"Csak egy vagy ket elemű tuple-ek támogatottak");
 
+				//Reads the elements of the tuple
+				int[] tupleArray = new int[tupleLength];
+				for(int k = 0; k < tupleLength; k++){
+					tupleArray[i] = data.readInt();
+				}
+				Tuple tuple = Tuple.of(tupleArray);
+				System.out.println("\t\t\tWriting tuple: " + tuple);
+
+				//Reads the old and new value
 				boolean oldValue = data.readBoolean();
 				System.out.println("\t\t\tWriting oldValue: " + oldValue);
 
