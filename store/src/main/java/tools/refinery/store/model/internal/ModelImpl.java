@@ -107,11 +107,15 @@ public class ModelImpl implements Model {
 							"Maps in model have different versions! (" + version + " and" + newVersion + ")");
 				}
 			} else {
-				version = newVersion;
-				versionSet = true;
+				//TODO exceptiont dob emiatt a következő storenál a fenti if, mert igazából nem változotott a verzió (hiszen első storenál nem volt mit commitolni)
+				//TODO ezért beleírtam egy ifet
+				if(version != newVersion) {
+					version = newVersion;
+					versionSet = true;
+				}
 			}
 		}
-		
+
 		return version;
 	}
 
@@ -125,17 +129,17 @@ public class ModelImpl implements Model {
 			throw new IllegalArgumentException("Map does not contain state "+state+"!");
 		}
 	}
-	
+
 	@Override
 	public int hashCode() {
 		return this.maps.hashCode();
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		return this.maps.equals(obj);
 	}
-	
+
 	@Override
 	public ModelStatistics getStatistics() {
 		ModelStatistics statistics = new ModelStatistics();
@@ -149,7 +153,7 @@ public class ModelImpl implements Model {
 		}
 		return statistics;
 	}
-	
+
 	@Override
 	public ModelStatistics getStatistics(Map<Object, Object> cache) {
 		ModelStatistics statistics = new ModelStatistics();

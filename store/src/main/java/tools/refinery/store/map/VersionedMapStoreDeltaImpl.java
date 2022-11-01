@@ -40,6 +40,7 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 	public synchronized MapTransaction<K, V> appendTransaction(MapDelta<K, V>[] deltas, MapTransaction<K, V> previous, long[] versionContainer) {
 		long version = nextID++;
 		versionContainer[0] = version;
+		//TODO itt volt deltas null, ezért meghalt a length hívásnál
 		if(deltas.length == 0) {
 			states.put(version, previous);
 			return previous;

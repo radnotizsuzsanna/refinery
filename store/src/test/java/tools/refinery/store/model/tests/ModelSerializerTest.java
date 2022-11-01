@@ -24,14 +24,14 @@ class ModelSerializerTest {
 		model.put(friend, Tuple.of(0, 1), true);
 		model.put(friend, Tuple.of(1, 0), true);
 
-		long lastVersin = model.commit();
+		long firstVersion = model.commit();
 
 		//Model model = store.createModel(3);
 
-		//	model.put(person, Tuple.of(0), false);
-		//	model.put(person, Tuple.of(1), false);
+		//model.put(person, Tuple.of(0), false);
+		//model.put(person, Tuple.of(1), false);
 
-		//	model.commit();
+		//long secondVersion = model.commit();
 
 		ModelSerializer serializer = new ModelSerializer();
 

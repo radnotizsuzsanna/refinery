@@ -127,7 +127,7 @@ public class ModelSerializer {
 			//TODO -1 -> null?
 			System.out.println("\t\tReading parent of transaction: " + parent);
 			int num = data.readInt();
-			System.out.println("\t\tWriting number of deltas: " + num);
+			System.out.println("\t\tReading number of deltas: " + num);
 
 			for(int j = 0; j < num; j++){
 
@@ -137,14 +137,14 @@ public class ModelSerializer {
 					tupleArray[i] = data.readInt();
 				}
 				Tuple tuple = Tuple.of(tupleArray);
-				System.out.println("\t\t\tWriting tuple: " + tuple);
+				System.out.println("\t\t\tReading tuple: " + tuple);
 
 				//Reads the old and new value
 				boolean oldValue = data.readBoolean();
-				System.out.println("\t\t\tWriting oldValue: " + oldValue);
+				System.out.println("\t\t\tReading oldValue: " + oldValue);
 
 				boolean newValue = data.readBoolean();
-				System.out.println("\t\t\tWriting newValue: " + newValue);
+				System.out.println("\t\t\tReading newValue: " + newValue);
 			}
 		}
 		return null;
