@@ -4,8 +4,7 @@ import org.junit.jupiter.api.Test;
 import tools.refinery.store.model.*;
 import tools.refinery.store.model.representation.Relation;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.util.Set;
 
 class ModelSerializerTest {
@@ -37,7 +36,10 @@ class ModelSerializerTest {
 		ModelSerializer serializer = new ModelSerializer();
 
 		try {
-			serializer.write(store, "test.txt");
+
+			FileOutputStream file = new FileOutputStream("test.txt");
+			DataOutputStream data = new DataOutputStream(file);
+			serializer.write(store, data);
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
@@ -48,7 +50,9 @@ class ModelSerializerTest {
 		Model model2 = store2.createModel();
 
 		try {
-			serializer.read(store2, "test.txt");
+			InputStream input = new FileInputStream("test.txt");
+			DataInputStream data = new DataInputStream(input);
+			serializer.read(store2, data);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

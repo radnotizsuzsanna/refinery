@@ -17,12 +17,9 @@ import java.util.Map.Entry;
  *
  */
 public class ModelSerializer {
-	public void write(ModelStore store, String path) throws IOException {
+	public void write(ModelStore store, DataOutputStream data) throws IOException {
 		if (store instanceof ModelStoreImpl impl) {
-			FileOutputStream file = new FileOutputStream(path);
-			DataOutputStream data = new DataOutputStream(file);
-
-			for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : impl.stores.entrySet()) {
+						for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : impl.stores.entrySet()) {
 				DataRepresentation<?, ?> dataRepresentation = entry.getKey();
 				if (dataRepresentation instanceof Relation<?> relation) {
 					VersionedMapStore<?, ?> mapStore = entry.getValue();
@@ -41,11 +38,8 @@ public class ModelSerializer {
 		}
 	}
 
-	public ModelStore read(ModelStore store, String path) throws IOException {
+	public ModelStore read(ModelStore store, DataInputStream data) throws IOException {
 		if (store instanceof ModelStoreImpl impl) {
-			InputStream input = new FileInputStream(path);
-			DataInputStream data = new DataInputStream(input);
-
 			for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : impl.stores.entrySet()) {
 				DataRepresentation<?, ?> dataRepresentation = entry.getKey();
 				if (dataRepresentation instanceof Relation<?> relation) {
