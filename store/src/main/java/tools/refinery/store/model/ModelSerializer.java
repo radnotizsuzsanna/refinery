@@ -59,19 +59,15 @@ public class ModelSerializer {
 		data.writeBoolean((boolean) mapStore.getDefaultValue());
 		System.out.println("\tWriting defaultValue: " + mapStore.getDefaultValue());
 
-		//Kiszámolja a tuple hosszát
-		MapTransaction<?, ?> mapTransaction = mapStore.getState(0);
-		MapDelta<?, ?>[] deltasOfTransaction = mapTransaction.deltas();
+		//Fájlba irja Tuple-l hosszát
 		int tupleLength = relation.getArity();
-
-		//Fájlba Tuple-l hosszát
 		data.writeInt(tupleLength);
 		System.out.println("\tWriting tupleLength: " + tupleLength);
 
 		//Vegigmegy a mapTransaction-okon TODO olyan teszt eset ahol több van mint egy
 		for(int i = 0; i < mapStore.getStates().size(); i++){
-			mapTransaction = mapStore.getState(i);
-			deltasOfTransaction = mapTransaction.deltas();
+			MapTransaction<?, ?>  mapTransaction = mapStore.getState(i);
+			MapDelta<?, ?>[] deltasOfTransaction = mapTransaction.deltas();
 
 			//Fájlba írja a mapTransaction versionjet, parent id-jét és db számát
 			data.writeLong(mapTransaction.version());
