@@ -9,7 +9,7 @@ import java.util.Set;
 
 class ModelSerializerTest {
 	@Test
-	void modelBuildingTest() {
+	void modelBuildingTest() throws IOException {
 		Relation<Boolean> person = new Relation<>("Person", 1, false);
 		//Relation<Integer> age = new Relation<Integer>("age", 1, null);
 		Relation<Boolean> friend = new Relation<>("friend", 2, false);
@@ -28,17 +28,20 @@ class ModelSerializerTest {
 
 		//Model model = store.createModel(3);
 
-	//	model.put(person, Tuple.of(0), false);
-	//	model.put(person, Tuple.of(1), false);
+		//	model.put(person, Tuple.of(0), false);
+		//	model.put(person, Tuple.of(1), false);
 
-	//	model.commit();
+		//	model.commit();
 
 		ModelSerializer serializer = new ModelSerializer();
 
-		try {
+		//Temporary file for serializing the ModelStore
+		File file = File.createTempFile("test", ".txt");
 
-			FileOutputStream file = new FileOutputStream("test.txt");
-			DataOutputStream data = new DataOutputStream(file);
+		//Serializes the ModelStore
+		try {
+			FileOutputStream fileStream = new FileOutputStream(file);
+			DataOutputStream data = new DataOutputStream(fileStream);
 			serializer.write(store, data);
 		}
 		catch (IOException e) {
@@ -46,11 +49,10 @@ class ModelSerializerTest {
 		}
 
 
+		//Deserializes the ModelStore
 		ModelStore store2 = new ModelStoreImpl(Set.of(person, /*age,*/ friend));
-		Model model2 = store2.createModel();
-
 		try {
-			InputStream input = new FileInputStream("test.txt");
+			InputStream input = new FileInputStream(file);
 			DataInputStream data = new DataInputStream(input);
 			serializer.read(store2, data);
 		} catch (IOException e) {
