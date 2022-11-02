@@ -17,12 +17,19 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 	protected final V defaultValue;
 
 	// Dynamic data
-	protected final LongObjectHashMap<MapTransaction<K, V>> states = new LongObjectHashMap<>();
+	// TODO leszedtem a final-t az elejéről, mert a konstruktor nem működött vele, amit lentebb írtam - Inci
+	protected LongObjectHashMap<MapTransaction<K, V>> states = new LongObjectHashMap<>();
 	protected long nextID = 0;
 
 	public VersionedMapStoreDeltaImpl(V defaultValue) {
 		super();
 		this.defaultValue = defaultValue;
+	}
+
+	// Inci írta bele
+	public VersionedMapStoreDeltaImpl(V defaultValue, LongObjectHashMap<MapTransaction<K, V>> states){
+		this.defaultValue = defaultValue;
+		this.states = states;
 	}
 
 	@Override

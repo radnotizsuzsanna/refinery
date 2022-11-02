@@ -9,7 +9,10 @@ import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 
 import java.io.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  *
@@ -24,6 +27,22 @@ public class ModelSerializer {
 				if (dataRepresentation instanceof Relation<?> relation) {
 					VersionedMapStore<?, ?> mapStore = entry.getValue();
 					if (mapStore instanceof VersionedMapStoreDeltaImpl<?, ?> deltaStore) {
+						//TODO Hash providert ki kell írni?
+						//Relation name kiírása
+						String name = relation.getName();
+						byte[] nameByte = name.getBytes("UTF-8");
+						data.writeInt(nameByte.length);
+						data.write(nameByte);
+						System.out.println("\tWriting Relation name: " + relation.getName());
+
+						//Realtion arity kiírása
+						data.writeInt((int) relation.getArity());
+						System.out.println("\tWriting Relation arity: " + relation.getArity());
+
+						//Relation defaultValue kiírása
+						data.writeInt((int) relation.getDefaultValue());
+						System.out.println("\tWriting Relation defaultValue: " + relation.getDefaultValue());
+
 						writeDeltaStore(relation, deltaStore, data);
 					} else {
 						throw new UnsupportedOperationException("Only delta stores are supported!");
@@ -38,18 +57,38 @@ public class ModelSerializer {
 		}
 	}
 
-	public ModelStore read(ModelStore store, DataInputStream data) throws IOException {
-		if (store instanceof ModelStoreImpl impl) {
-			for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : impl.stores.entrySet()) {
-				DataRepresentation<?, ?> dataRepresentation = entry.getKey();
-				if (dataRepresentation instanceof Relation<?> relation) {
-					//TODO ezzel mit csináljunk?
-					VersionedMapStoreDeltaImpl<?,?> mapStore = readDeltaStore(relation, data);
-				}
-			}
-			data.close();
-		}
-		return null;
+	//Ez a függvény jelenleg egy DatainputStreamet tud beolvasni, szóval egy ModelStore-t
+	public ModelStore read(DataInputStream data) throws IOException {
+		//Relation name bolvasása
+		int length = data.readInt();
+		byte[] nameByte = new byte[length];
+		data.readFully(nameByte);
+		String name = new String(nameByte,"UTF-8");
+		System.out.println("\tReading name: " + name);
+
+		//Relation aritás beolvasása
+		int arity = data.readInt();
+		System.out.println("\tReading Relation arity: " + arity);
+
+		//Relation defaultValue beolvasása
+		int defaultValue = data.readInt();
+		System.out.println("\tReading Relation defaultValue: " + defaultValue);
+
+		//Relation létrehozása
+		Relation relation = new Relation(name, arity, defaultValue);
+		System.out.println("\tRelation created: " + relation.getName());
+
+		//VersionedMapStoreDeltaImpl létrehozása
+		VersionedMapStoreDeltaImpl<?,?> mapStore = readDeltaStore(relation, data);
+		System.out.println("\tVersionedMapStoreDeltaImpl created.");
+
+		//ModelStore létrehozása Relationből és VersionedMapStoreDeltaImpl-ből
+		Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores = new HashMap<>();
+		stores.put(relation, mapStore);
+		ModelStore store = new ModelStoreImpl(stores);
+
+		data.close();
+		return store;
 	}
 
 	protected void writeDeltaStore(Relation<?> relation, VersionedMapStoreDeltaImpl<?,?> mapStore, DataOutputStream data) throws IOException {
@@ -112,10 +151,6 @@ public class ModelSerializer {
 		boolean defaultValue = data.readBoolean();
 		System.out.println("\tReading defaultValue: " + defaultValue);
 
-		//TODO ezt nem tudom hogy kel aaa
-		VersionedMapStoreDeltaImpl<Tuple, Boolean> mapStore= new VersionedMapStoreDeltaImpl<>(defaultValue);
-		VersionedMap<Tuple, Boolean> versionedMap = mapStore.createMap();
-
 		int tupleLength = data.readInt();
 		System.out.println("\tReading tupleLength: " + tupleLength);
 
@@ -129,6 +164,7 @@ public class ModelSerializer {
 			int num = data.readInt();
 			System.out.println("\t\tReading number of deltas: " + num);
 
+			MapDelta<Boolean, Boolean>[] deltas = new MapDelta[num];
 			for(int j = 0; j < num; j++){
 
 				//Reads the elements of the tuple
@@ -145,8 +181,14 @@ public class ModelSerializer {
 
 				boolean newValue = data.readBoolean();
 				System.out.println("\t\t\tReading newValue: " + newValue);
+				deltas[i] = new MapDelta<Boolean, Boolean>(tuple, oldValue, newValue);
 			}
+			MapTransaction<Boolean, Boolean>  transaction = new MapTransaction<>(deltas, version, parent);
 		}
-		return null;
+
+		//TODO ezt nem tudom hogy kell aaa
+		VersionedMapStoreDeltaImpl<Tuple, Boolean> mapStore= new VersionedMapStoreDeltaImpl<>(defaultValue);
+
+		return mapStore;
 	}
 }

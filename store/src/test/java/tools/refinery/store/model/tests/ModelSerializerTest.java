@@ -49,11 +49,10 @@ class ModelSerializerTest {
 		}
 
 		//Deserializes the ModelStore
-		ModelStore store2 = new ModelStoreImpl(Set.of(person, /*age,*/ friend));
 		try {
 			InputStream input = new FileInputStream(file);
 			DataInputStream data = new DataInputStream(input);
-			serializer.read(store2, data);
+			ModelStore store2 = serializer.read(data);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
