@@ -67,37 +67,41 @@ public class ModelSerializer {
 
 	//Ez a függvény jelenleg egy DatainputStreamet tud beolvasni, szóval egy ModelStore-t
 	public ModelStore read(DataInputStream data) throws IOException {
-		//Relation name bolvasása
-		int length = data.readInt();
-		byte[] nameByte = new byte[length];
-		data.readFully(nameByte);
-		String name = new String(nameByte,"UTF-8");
-		System.out.println("\nReading Relation name: " + name);
-
-		//Relation aritás beolvasása
-		int arity = data.readInt();
-		System.out.println("Reading Relation arity: " + arity);
-
-		//Relation defaultValue beolvasása
-		boolean defaultValue = data.readBoolean();
-		System.out.println("Reading Relation defaultValue: " + defaultValue);
-
-
-		int tupleLength = data.readInt();
-		System.out.println("\tReading tupleLength: " + tupleLength);
-
-		//Relation létrehozása
-		Relation relation = new Relation(name, arity, defaultValue);
-		System.out.println("\tRelation created: " + relation.getName());
-
-		//VersionedMapStoreDeltaImpl létrehozása
-		//TODO még csak egyet olvas be
-		VersionedMapStoreDeltaImpl<?,?> mapStore = readDeltaStore(relation, data);
-		System.out.println("\tVersionedMapStoreDeltaImpl created.");
-
-		//ModelStore létrehozása Relationből és VersionedMapStoreDeltaImpl-ből
 		Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores = new HashMap<>();
-		stores.put(relation, mapStore);
+		//TODO honnan tudjuk h mennyi
+		for(int i = 0; i < 2; i++){
+			//Relation name bolvasása
+			int length = data.readInt();
+			byte[] nameByte = new byte[length];
+			data.readFully(nameByte);
+			String name = new String(nameByte,"UTF-8");
+			System.out.println("\nReading Relation name: " + name);
+
+			//Relation aritás beolvasása
+			int arity = data.readInt();
+			System.out.println("Reading Relation arity: " + arity);
+
+			//Relation defaultValue beolvasása
+			boolean defaultValue = data.readBoolean();
+			System.out.println("Reading Relation defaultValue: " + defaultValue);
+
+
+			int tupleLength = data.readInt();
+			System.out.println("\tReading tupleLength: " + tupleLength);
+
+			//Relation létrehozása
+			Relation relation = new Relation(name, arity, defaultValue);
+			System.out.println("\tRelation created: " + relation.getName());
+
+			//VersionedMapStoreDeltaImpl létrehozása
+			//TODO még csak egyet olvas be
+			VersionedMapStoreDeltaImpl<?,?> mapStore = readDeltaStore(relation, data);
+			System.out.println("\tVersionedMapStoreDeltaImpl created.");
+
+			//ModelStore létrehozása Relationből és VersionedMapStoreDeltaImpl-ből
+			stores.put(relation, mapStore);
+		}
+
 		ModelStore store = new ModelStoreImpl(stores);
 
 		data.close();
