@@ -8,17 +8,13 @@ public class UncommitedDeltaArrayStore<K,V> implements UncommitedDeltaStore<K, V
 
 	@Override
 	public void processChange(K key, V oldValue, V newValue) {
-		//System.out.println("itt jartam, key: " + key + "oldavalue: " + oldValue + "newValue: " +newValue);
-		if(oldValue != null){
-			System.out.println("itt allj meg");
-		}
 		uncommitedOldValues.add(new MapDelta<>(key, oldValue, newValue));
 	}
 
 	@Override
 	public MapDelta<K, V>[] extractDeltas() {
 		if(uncommitedOldValues.isEmpty()) {
-			//TODO miert empty?
+			//TODO miert empty azert volt az, mert csak a masik store-t modositottuk
 			return null;
 		} else {
 			@SuppressWarnings("unchecked")
@@ -29,7 +25,7 @@ public class UncommitedDeltaArrayStore<K,V> implements UncommitedDeltaStore<K, V
 
 	@Override
 	public MapDelta<K, V>[] extractAndDeleteDeltas() {
-		//null-t ad vissza
+		//TODO null-t ad vissza
 		MapDelta<K, V>[] res = extractDeltas();
 		this.uncommitedOldValues.clear();
 		return res;

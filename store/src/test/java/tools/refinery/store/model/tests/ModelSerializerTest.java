@@ -10,33 +10,28 @@ import java.util.Set;
 class ModelSerializerTest {
 	@Test
 	void modelBuildingTest() throws IOException {
-		Relation<Boolean> person = new Relation<>("Person", 1, false);
-		//Relation<Integer> age = new Relation<Integer>("age", 1, null);
+		Relation<Boolean> person = new Relation<>("person", 1, false);
 		Relation<Boolean> friend = new Relation<>("friend", 2, false);
 
-		ModelStore store = new ModelStoreImpl(Set.of(person, /*age,*/ friend));
+		ModelStore store = new ModelStoreImpl(Set.of(person, friend));
 		Model model = store.createModel();
 
 		model.put(person, Tuple.of(0), true);
 		model.put(person, Tuple.of(1), true);
-		//model.put(age, Tuple.of(0), 3);
-		//model.put(age, Tuple.of(1), 1);
 		model.put(friend, Tuple.of(0, 1), true);
 		model.put(friend, Tuple.of(1, 0), true);
 
 		long firstVersion = model.commit();
 
-		//Model model = store.createModel(3);
+		model.put(person, Tuple.of(0), false);
+		model.put(person, Tuple.of(1), false);
 
-		//model.put(person, Tuple.of(0), false);
-		//model.put(person, Tuple.of(1), false);
-
-		//long secondVersion = model.commit();
+		long secondVersion = model.commit();
 
 		ModelSerializer serializer = new ModelSerializer();
 
 		//Temporary file for serializing the ModelStore
-		File file = File.createTempFile("test", ".txt");
+		File file = File.createTempFile("relations", ".txt");
 
 		//Serializes the ModelStore
 		try {

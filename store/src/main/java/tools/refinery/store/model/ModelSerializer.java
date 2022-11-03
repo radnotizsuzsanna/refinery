@@ -22,7 +22,7 @@ import java.util.Set;
  *
  */
 public class ModelSerializer {
-	public void write(ModelStore store, DataOutputStream data) throws IOException {
+	public void write(ModelStore store, DataOutputStream relations) throws IOException {
 		if (store instanceof ModelStoreImpl impl) {
 			for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : impl.stores.entrySet()) {
 
@@ -31,27 +31,27 @@ public class ModelSerializer {
 					VersionedMapStore<?, ?> mapStore = entry.getValue();
 					if (mapStore instanceof VersionedMapStoreDeltaImpl<?, ?> deltaStore) {
 						//TODO Hash providert ki kell írni?
-						//Relation name kiírása
+						//Writes out Relation name
 						String name = relation.getName();
 						byte[] nameByte = name.getBytes("UTF-8");
-						data.writeInt(nameByte.length);
-						data.write(nameByte);
+						relations.writeInt(nameByte.length);
+						relations.write(nameByte);
 						System.out.println("\nWriting Relation name: " + relation.getName());
 
-						//Realtion arity kiírása
-						data.writeInt((int) relation.getArity());
+						//Writes out Realtion arity
+						relations.writeInt((int) relation.getArity());
 						System.out.println("Writing Relation arity: " + relation.getArity());
 
-						//Relation defaultValue kiírása
-						data.writeBoolean((boolean) relation.getDefaultValue());
+						//Writes out defaultValue
+						relations.writeBoolean((boolean) relation.getDefaultValue());
 						System.out.println("Writing Relation defaultValue: " + relation.getDefaultValue());
 
-						//Fájlba irja Tuple-l hosszát
+						//Writes out tuple length
 						int tupleLength = relation.getArity();
-						data.writeInt(tupleLength);
+						relations.writeInt(tupleLength);
 						System.out.println("Writing tupleLength: " + tupleLength);
 
-						writeDeltaStore(relation, deltaStore, data);
+						writeDeltaStore(relation, deltaStore);
 					} else {
 						throw new UnsupportedOperationException("Only delta stores are supported!");
 					}
@@ -60,43 +60,41 @@ public class ModelSerializer {
 							"Only Relation representations are supported during serialization.");
 				}
 			}
-			data.flush();
-			data.close();
+			relations.flush();
+			relations.close();
 		}
 	}
 
-	//Ez a függvény jelenleg egy DatainputStreamet tud beolvasni, szóval egy ModelStore-t
-	public ModelStore read(DataInputStream data) throws IOException {
+	public ModelStore read(DataInputStream relations) throws IOException {
 		Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores = new HashMap<>();
-		//TODO honnan tudjuk h mennyi
-		for(int i = 0; i < 2; i++){
+
+		while(relations.available()!=0){
 			//Relation name bolvasása
-			int length = data.readInt();
+			int length = relations.readInt();
 			byte[] nameByte = new byte[length];
-			data.readFully(nameByte);
+			relations.readFully(nameByte);
 			String name = new String(nameByte,"UTF-8");
 			System.out.println("\nReading Relation name: " + name);
 
 			//Relation aritás beolvasása
-			int arity = data.readInt();
+			int arity = relations.readInt();
 			System.out.println("Reading Relation arity: " + arity);
 
 			//Relation defaultValue beolvasása
-			boolean defaultValue = data.readBoolean();
+			boolean defaultValue = relations.readBoolean();
 			System.out.println("Reading Relation defaultValue: " + defaultValue);
 
-
-			int tupleLength = data.readInt();
-			System.out.println("\tReading tupleLength: " + tupleLength);
+			//Tuple length beolvasasa
+			int tupleLength = relations.readInt();
+			System.out.println("Reading tupleLength: " + tupleLength);
 
 			//Relation létrehozása
 			Relation relation = new Relation(name, arity, defaultValue);
-			System.out.println("\tRelation created: " + relation.getName());
+			System.out.println("Relation created: " + relation.getName());
 
 			//VersionedMapStoreDeltaImpl létrehozása
-			//TODO még csak egyet olvas be
-			VersionedMapStoreDeltaImpl<?,?> mapStore = readDeltaStore(relation, data);
-			System.out.println("\tVersionedMapStoreDeltaImpl created.");
+			VersionedMapStoreDeltaImpl<?,?> mapStore = readDeltaStore(relation);
+			System.out.println("VersionedMapStoreDeltaImpl created.");
 
 			//ModelStore létrehozása Relationből és VersionedMapStoreDeltaImpl-ből
 			stores.put(relation, mapStore);
@@ -104,85 +102,90 @@ public class ModelSerializer {
 
 		ModelStore store = new ModelStoreImpl(stores);
 
-		data.close();
+		relations.close();
 		return store;
 	}
 
-	protected void writeDeltaStore(Relation<?> relation, VersionedMapStoreDeltaImpl<?,?> mapStore, DataOutputStream data) throws IOException {
-		//Vegigmegy a mapTransaction-okon TODO olyan teszt eset ahol több van mint egy
+	protected void writeDeltaStore(Relation<?> relation, VersionedMapStoreDeltaImpl<?,?> mapStore) throws IOException {
+		//The file of the deltaStore
+		File file = new File(relation.getName() + ".txt");
+		file.createNewFile();
+		FileOutputStream fileStream = new FileOutputStream(file);
+		DataOutputStream data = new DataOutputStream(fileStream);
+
 		for(int i = 0; i < mapStore.getStates().size(); i++){
 			MapTransaction<?, ?>  mapTransaction = mapStore.getState(i);
 			MapDelta<?, ?>[] deltasOfTransaction = mapTransaction.deltas();
 
-			//Fájlba írja a mapTransaction versionjet, parent id-jét és db számát
+			//Writes out the version and the parent id of the mapTransaction
 			data.writeLong(mapTransaction.version());
-			System.out.println("\t\tWriting version of transaction: " + mapTransaction.version());
+			System.out.println("\tWriting version of transaction: " + mapTransaction.version());
 
 			if(mapTransaction.parent() == null) {
 				data.writeLong(-1);
-				System.out.println("\t\tWriting parent of transaction: -1");
+				System.out.println("\tWriting parent of transaction: -1");
 			}
 			else{
 				data.writeLong(mapTransaction.parent().version());
-				System.out.println("\t\tWriting parent of transaction: " + mapTransaction.parent().version());
+				System.out.println("\tWriting parent of transaction: " + mapTransaction.parent().version());
 			}
 
+			//Writes out the number of deltas
 			data.writeInt(mapTransaction.deltas().length);
-			System.out.println("\t\tWriting number of deltas: " + mapTransaction.deltas().length);
+			System.out.println("\tWriting number of deltas: " + mapTransaction.deltas().length);
 
-			//Vegigmegy a deltakon
 			for(int j = 0; j < deltasOfTransaction.length; j++){
-				//Fájlba írja a key-t
+				//Writes out key
 				Tuple tuple = (Tuple) deltasOfTransaction[j].key();
-				System.out.println("\t\t\tWriting key: " + deltasOfTransaction[j].key());
+				System.out.println("\t\tWriting key: " + deltasOfTransaction[j].key());
 
 				for(int k = 0; k < relation.getArity(); k++){
 					data.writeInt(tuple.get(k));
 				}
 
-				//Régi és új értékek fájlba írása TODO miért lehet null?
+				//Writes out new and old value
 				if(deltasOfTransaction[j].oldValue() == null) data.writeBoolean(false);
 				else data.writeBoolean((boolean) deltasOfTransaction[j].oldValue());
-				System.out.println("\t\t\tWriting oldaValue:  " + deltasOfTransaction[j].oldValue());
+				System.out.println("\t\tWriting oldaValue:  " + deltasOfTransaction[j].oldValue());
 
 				data.writeBoolean((boolean) deltasOfTransaction[j].newValue());
-				System.out.println("\t\t\tWriting newValue:  " +  deltasOfTransaction[j].newValue());
+				System.out.println("\t\tWriting newValue:  " +  deltasOfTransaction[j].newValue());
 
 			}
 		}
 	}
 
-	protected VersionedMapStoreDeltaImpl<?,?> readDeltaStore(Relation<?> relation, DataInputStream data) throws IOException {
+	protected VersionedMapStoreDeltaImpl<?,?> readDeltaStore(Relation<?> relation) throws IOException {
 		LongObjectHashMap<MapTransaction<Tuple, Boolean>> mapTransactionArray = new LongObjectHashMap<>();
+		InputStream input = new FileInputStream(relation.getName() + ".txt");
+		DataInputStream data = new DataInputStream(input);
 
-
-		//TODO honnan tudom meddig kell menni?
-		for(int i = 0; i < 1; i++){
+		while(data.available()!=0){
 			long version = data.readLong();
-			System.out.println("\t\tReading version of transaction: " + version);
+			System.out.println("\tReading version of transaction: " + version);
 			long parent = data.readLong();
-			//TODO -1 -> null?
-			System.out.println("\t\tReading parent of transaction: " + parent);
+			System.out.println("\tReading parent of transaction: " + parent);
 			int num = data.readInt();
-			System.out.println("\t\tReading number of deltas: " + num);
+			System.out.println("\tReading number of deltas: " + num);
 
+			//TODO ezzel nem tudom, hogy mit csináljak
 			MapDelta[] deltas = new MapDelta[num];
 			for(int j = 0; j < num; j++){
 				//Reads the elements of the tuple
 				int[] tupleArray = new int[relation.getArity()];
 				for(int k = 0; k < relation.getArity(); k++){
-					tupleArray[i] = data.readInt();
+					tupleArray[k] = data.readInt();
 				}
 				Tuple tuple = Tuple.of(tupleArray);
-				System.out.println("\t\t\tReading tuple: " + tuple);
+				System.out.println("\t\tReading tuple: " + tuple);
 
 				//Reads the old and new value
 				boolean oldValue = data.readBoolean();
-				System.out.println("\t\t\tReading oldValue: " + oldValue);
+				System.out.println("\t\tReading oldValue: " + oldValue);
 
 				boolean newValue = data.readBoolean();
-				System.out.println("\t\t\tReading newValue: " + newValue);
-				deltas[i] = new MapDelta<>(tuple, oldValue, newValue);
+				System.out.println("\t\tReading newValue: " + newValue);
+				deltas[j] = new MapDelta<>(tuple, oldValue, newValue);
 			}
 			if(parent == -1){
 				mapTransactionArray.put(parent, new MapTransaction<>(deltas, version, null));
