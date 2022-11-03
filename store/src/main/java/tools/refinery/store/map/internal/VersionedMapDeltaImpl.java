@@ -34,11 +34,7 @@ public class VersionedMapDeltaImpl<K, V> implements VersionedMap<K, V> {
 		//TODO itt miert null lesz a deltas? - mert az elso storehoz nem adtunk hozza semmit
 		MapDelta<K, V>[] deltas = uncommitedStore.extractAndDeleteDeltas();
 		long[] versionContainer = new long[1];
-		//TODO beleírtam ezt az ifet
-		if(deltas != null){
-			this.previous = this.store.appendTransaction(deltas, previous, versionContainer);
-		}
-
+		this.previous = this.store.appendTransaction(deltas, previous, versionContainer);
 		return versionContainer[0];
 	}
 

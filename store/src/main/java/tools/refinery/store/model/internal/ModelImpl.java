@@ -107,12 +107,9 @@ public class ModelImpl implements Model {
 							"Maps in model have different versions! (" + version + " and" + newVersion + ")");
 				}
 			} else {
-				//TODO exceptiont dob emiatt a következő storenál a fenti if, mert igazából nem változotott a verzió (hiszen első storenál nem volt mit commitolni)
-				//TODO ezért beleírtam egy ifet
-				if(version != newVersion) {
-					version = newVersion;
-					versionSet = true;
-				}
+				version = newVersion;
+				versionSet = true;
+
 			}
 		}
 

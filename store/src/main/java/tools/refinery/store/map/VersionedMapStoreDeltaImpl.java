@@ -18,15 +18,14 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 
 	// Dynamic data
 	// TODO leszedtem a final-t az elejéről, mert a konstruktor nem működött vele, amit lentebb írtam - Inci
-	protected LongObjectHashMap<MapTransaction<K, V>> states = new LongObjectHashMap<>();
+	final protected LongObjectHashMap<MapTransaction<K, V>> states;
 	protected long nextID = 0;
 
 	public VersionedMapStoreDeltaImpl(V defaultValue) {
-		super();
-		this.defaultValue = defaultValue;
+		this(defaultValue, new LongObjectHashMap<>());
 	}
 
-	// Inci írta bele
+	// TODO Inci írta bele
 	public VersionedMapStoreDeltaImpl(V defaultValue, LongObjectHashMap<MapTransaction<K, V>> states){
 		this.defaultValue = defaultValue;
 		this.states = states;
@@ -47,8 +46,7 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 	public synchronized MapTransaction<K, V> appendTransaction(MapDelta<K, V>[] deltas, MapTransaction<K, V> previous, long[] versionContainer) {
 		long version = nextID++;
 		versionContainer[0] = version;
-		//TODO itt volt deltas null, ezért meghalt a length hívásnál
-		if(deltas.length == 0) {
+		if(deltas == null || deltas.length == 0) {
 			states.put(version, previous);
 			return previous;
 		} else {

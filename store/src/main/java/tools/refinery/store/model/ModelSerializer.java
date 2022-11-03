@@ -30,7 +30,6 @@ public class ModelSerializer {
 				if (dataRepresentation instanceof Relation<?> relation) {
 					VersionedMapStore<?, ?> mapStore = entry.getValue();
 					if (mapStore instanceof VersionedMapStoreDeltaImpl<?, ?> deltaStore) {
-						//TODO Hash providert ki kell írni?
 						//Writes out Relation name
 						String name = relation.getName();
 						byte[] nameByte = name.getBytes("UTF-8");
@@ -89,7 +88,7 @@ public class ModelSerializer {
 			System.out.println("Reading tupleLength: " + tupleLength);
 
 			//Relation létrehozása
-			Relation relation = new Relation(name, arity, defaultValue);
+			var relation = new Relation<>(name, arity, defaultValue);
 			System.out.println("Relation created: " + relation.getName());
 
 			//VersionedMapStoreDeltaImpl létrehozása
@@ -169,7 +168,8 @@ public class ModelSerializer {
 			System.out.println("\tReading number of deltas: " + num);
 
 			//TODO ezzel nem tudom, hogy mit csináljak
-			MapDelta[] deltas = new MapDelta[num];
+			@SuppressWarnings({"unchecked"})
+			var deltas = (MapDelta<Tuple, Boolean>[]) new MapDelta[num];
 			for(int j = 0; j < num; j++){
 				//Reads the elements of the tuple
 				int[] tupleArray = new int[relation.getArity()];
@@ -196,8 +196,6 @@ public class ModelSerializer {
 			}
 		}
 		boolean defaultValue = (boolean) relation.getDefaultValue();
-		VersionedMapStoreDeltaImpl<Tuple, Boolean> mapStore= new VersionedMapStoreDeltaImpl<>(defaultValue, mapTransactionArray);
-
-		return mapStore;
+		return new VersionedMapStoreDeltaImpl<>(defaultValue, mapTransactionArray);
 	}
 }
