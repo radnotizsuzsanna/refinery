@@ -22,7 +22,7 @@ import java.util.Set;
  *
  */
 public class ModelSerializer {
-	public void write(ModelStore store, DataOutputStream relations) throws IOException {
+	public void write(ModelStore store, DataOutputStream relations, HashMap<Relation<?>, DataOutputStream> streames) throws IOException {
 		if (store instanceof ModelStoreImpl impl) {
 			for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : impl.stores.entrySet()) {
 
@@ -50,7 +50,7 @@ public class ModelSerializer {
 						relations.writeInt(tupleLength);
 						System.out.println("Writing tupleLength: " + tupleLength);
 
-						writeDeltaStore(relation, deltaStore);
+						writeDeltaStore(relation, deltaStore, streames.get(relation));
 					} else {
 						throw new UnsupportedOperationException("Only delta stores are supported!");
 					}
@@ -64,9 +64,10 @@ public class ModelSerializer {
 		}
 	}
 
-	public ModelStore read(DataInputStream relations) throws IOException {
+	public ModelStore read(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streames) throws IOException {
 		Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores = new HashMap<>();
 
+		int i = 0;
 		while(relations.available()!=0){
 			//Relation name bolvasása
 			int length = relations.readInt();
@@ -92,11 +93,13 @@ public class ModelSerializer {
 			System.out.println("Relation created: " + relation.getName());
 
 			//VersionedMapStoreDeltaImpl létrehozása
-			VersionedMapStoreDeltaImpl<?,?> mapStore = readDeltaStore(relation);
+			DataInputStream data = streames.get(relation);
+			VersionedMapStoreDeltaImpl<?,?> mapStore = readDeltaStore(relation, data);
 			System.out.println("VersionedMapStoreDeltaImpl created.");
 
 			//ModelStore létrehozása Relationből és VersionedMapStoreDeltaImpl-ből
 			stores.put(relation, mapStore);
+			i++;
 		}
 
 		ModelStore store = new ModelStoreImpl(stores);
@@ -105,13 +108,7 @@ public class ModelSerializer {
 		return store;
 	}
 
-	protected void writeDeltaStore(Relation<?> relation, VersionedMapStoreDeltaImpl<?,?> mapStore) throws IOException {
-		//The file of the deltaStore
-		File file = new File(relation.getName() + ".txt");
-		file.createNewFile();
-		FileOutputStream fileStream = new FileOutputStream(file);
-		DataOutputStream data = new DataOutputStream(fileStream);
-
+	protected void writeDeltaStore(Relation<?> relation, VersionedMapStoreDeltaImpl<?,?> mapStore, DataOutputStream data) throws IOException {
 		for(int i = 0; i < mapStore.getStates().size(); i++){
 			MapTransaction<?, ?>  mapTransaction = mapStore.getState(i);
 			MapDelta<?, ?>[] deltasOfTransaction = mapTransaction.deltas();
@@ -154,10 +151,8 @@ public class ModelSerializer {
 		}
 	}
 
-	protected VersionedMapStoreDeltaImpl<?,?> readDeltaStore(Relation<?> relation) throws IOException {
+	protected VersionedMapStoreDeltaImpl<?,?> readDeltaStore(Relation<?> relation, DataInputStream data) throws IOException {
 		LongObjectHashMap<MapTransaction<Tuple, Boolean>> mapTransactionArray = new LongObjectHashMap<>();
-		InputStream input = new FileInputStream(relation.getName() + ".txt");
-		DataInputStream data = new DataInputStream(input);
 
 		while(data.available()!=0){
 			long version = data.readLong();
@@ -167,7 +162,6 @@ public class ModelSerializer {
 			int num = data.readInt();
 			System.out.println("\tReading number of deltas: " + num);
 
-			//TODO ezzel nem tudom, hogy mit csináljak
 			@SuppressWarnings({"unchecked"})
 			var deltas = (MapDelta<Tuple, Boolean>[]) new MapDelta[num];
 			for(int j = 0; j < num; j++){

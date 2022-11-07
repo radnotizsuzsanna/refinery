@@ -2,9 +2,12 @@ package tools.refinery.store.model.tests;
 
 import org.junit.jupiter.api.Test;
 import tools.refinery.store.model.*;
+import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 
 import java.io.*;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 
 class ModelSerializerTest {
@@ -30,6 +33,26 @@ class ModelSerializerTest {
 
 		ModelSerializer serializer = new ModelSerializer();
 
+
+
+		int numberOfRelations = store.getDataRepresentations().size();
+		List< DataRepresentation<?,?>> list = store.getDataRepresentations().stream().toList();
+		HashMap<Relation<?>, DataOutputStream> streamesOut = new HashMap<>();
+		HashMap<Relation<?>, DataInputStream> streamesIn = new HashMap<>();
+
+		for(int i = 0; i < numberOfRelations; i++){
+			File file = File.createTempFile("file" + i,  ".txt");
+			FileOutputStream fileOutputStream = new FileOutputStream(file);
+			DataOutputStream dataOutputStream = new DataOutputStream(fileOutputStream);
+
+			FileInputStream fileInputStream = new FileInputStream(file);
+			DataInputStream dataInputStream = new DataInputStream(fileInputStream);
+			if (list.get(i) instanceof Relation<?> relation){
+				streamesOut.put(relation, dataOutputStream);
+				streamesIn.put(relation, dataInputStream);
+			}
+		}
+
 		//Temporary file for serializing the ModelStore
 		File file = File.createTempFile("relations", ".txt");
 
@@ -37,7 +60,7 @@ class ModelSerializerTest {
 		try {
 			FileOutputStream fileStream = new FileOutputStream(file);
 			DataOutputStream data = new DataOutputStream(fileStream);
-			serializer.write(store, data);
+			serializer.write(store, data, streamesOut);
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
@@ -47,7 +70,7 @@ class ModelSerializerTest {
 		try {
 			InputStream input = new FileInputStream(file);
 			DataInputStream data = new DataInputStream(input);
-			ModelStore store2 = serializer.read(data);
+			ModelStore store2 = serializer.read(data, streamesIn);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
