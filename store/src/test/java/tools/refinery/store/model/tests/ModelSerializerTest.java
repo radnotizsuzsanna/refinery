@@ -33,34 +33,35 @@ class ModelSerializerTest {
 
 		ModelSerializer serializer = new ModelSerializer();
 
-
+		//The HasMaps contain the DataStreams for serializing the MapStores (MapStores will be stored in separate files)
+		HashMap<Relation<?>, DataOutputStream> streamMapOut = new HashMap<>();
+		HashMap<Relation<?>, DataInputStream> streamMapIn = new HashMap<>();
 
 		int numberOfRelations = store.getDataRepresentations().size();
 		List< DataRepresentation<?,?>> list = store.getDataRepresentations().stream().toList();
-		HashMap<Relation<?>, DataOutputStream> streamesOut = new HashMap<>();
-		HashMap<Relation<?>, DataInputStream> streamesIn = new HashMap<>();
-
 		for(int i = 0; i < numberOfRelations; i++){
-			File file = File.createTempFile("file" + i,  ".txt");
-			FileOutputStream fileOutputStream = new FileOutputStream(file);
-			DataOutputStream dataOutputStream = new DataOutputStream(fileOutputStream);
+			PipedInputStream pipedInput = new PipedInputStream();
+			PipedOutputStream pipedOutput = new PipedOutputStream();
+			pipedInput.connect(pipedOutput);
 
-			FileInputStream fileInputStream = new FileInputStream(file);
-			DataInputStream dataInputStream = new DataInputStream(fileInputStream);
-			if (list.get(i) instanceof Relation<?> relation){
-				streamesOut.put(relation, dataOutputStream);
-				streamesIn.put(relation, dataInputStream);
-			}
+			DataOutputStream dataOutputStream = new DataOutputStream(pipedOutput);
+			DataInputStream dataInputStream = new DataInputStream(pipedInput);
+
+			streamMapOut.put((Relation<?>) list.get(i), dataOutputStream);
+			streamMapIn.put((Relation<?>) list.get(i), dataInputStream);
 		}
 
-		//Temporary file for serializing the ModelStore
-		File file = File.createTempFile("relations", ".txt");
+		//DataStreams for serializing the Relations of the ModelStore
+		PipedInputStream pipedInput = new PipedInputStream();
+		PipedOutputStream pipedOutput = new PipedOutputStream();
+		pipedInput.connect(pipedOutput);
+		DataOutputStream dataOutputStream = new DataOutputStream(pipedOutput);
+		DataInputStream dataInputStream = new DataInputStream(pipedInput);
+
 
 		//Serializes the ModelStore
 		try {
-			FileOutputStream fileStream = new FileOutputStream(file);
-			DataOutputStream data = new DataOutputStream(fileStream);
-			serializer.write(store, data, streamesOut);
+			serializer.write(store, dataOutputStream, streamMapOut);
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
@@ -68,9 +69,7 @@ class ModelSerializerTest {
 
 		//Deserializes the ModelStore
 		try {
-			InputStream input = new FileInputStream(file);
-			DataInputStream data = new DataInputStream(input);
-			ModelStore store2 = serializer.read(data, streamesIn);
+			ModelStore store2 = serializer.read(dataInputStream, streamMapIn);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
