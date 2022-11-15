@@ -13,8 +13,8 @@ import java.util.Set;
 class ModelSerializerTest {
 	@Test
 	void modelBuildingTest() throws IOException {
-		Relation<Boolean> person = new Relation<>("person", 1, false);
-		Relation<Boolean> friend = new Relation<>("friend", 2, false);
+		Relation<Boolean> person = new Relation<>("person", 1, Boolean.class,false);
+		Relation<Boolean> friend = new Relation<>("friend", 2, Boolean.class,false);
 
 		ModelStore store = new ModelStoreImpl(Set.of(person, friend));
 		Model model = store.createModel();
@@ -55,13 +55,13 @@ class ModelSerializerTest {
 		PipedInputStream pipedInput = new PipedInputStream();
 		PipedOutputStream pipedOutput = new PipedOutputStream();
 		pipedInput.connect(pipedOutput);
-		DataOutputStream dataOutputStream = new DataOutputStream(pipedOutput);
-		DataInputStream dataInputStream = new DataInputStream(pipedInput);
+		DataOutputStream relationsOutputStream = new DataOutputStream(pipedOutput);
+		DataInputStream relationsInputStream = new DataInputStream(pipedInput);
 
 
 		//Serializes the ModelStore
 		try {
-			serializer.write(store, dataOutputStream, streamMapOut);
+			serializer.write(store, relationsOutputStream, streamMapOut);
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
@@ -69,7 +69,7 @@ class ModelSerializerTest {
 
 		//Deserializes the ModelStore
 		try {
-			ModelStore store2 = serializer.read(dataInputStream, streamMapIn);
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

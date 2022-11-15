@@ -1,9 +1,5 @@
 package tools.refinery.store.model.tests;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Set;
 
 import org.junit.jupiter.api.Assertions;
@@ -15,12 +11,14 @@ import tools.refinery.store.model.ModelStoreImpl;
 import tools.refinery.store.model.Tuple;
 import tools.refinery.store.model.representation.Relation;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 class ModelTest {
 
 	@Test
 	void modelConstructionTest() {
-		Relation<Boolean> person = new Relation<>("Person", 1, false);
-		Relation<Boolean> friend = new Relation<>("friend", 2, false);
+		Relation<Boolean> person = new Relation<>("Person", 1, Boolean.class,false);
+		Relation<Boolean> friend = new Relation<>("friend", 2, Boolean.class,false);
 
 		ModelStore store = new ModelStoreImpl(Set.of(person, friend));
 		Model model = store.createModel();
@@ -30,15 +28,15 @@ class ModelTest {
 		assertTrue(model.getDataRepresentations().contains(person));
 		assertTrue(model.getDataRepresentations().contains(friend));
 
-		Relation<Integer> other = new Relation<Integer>("other", 2, null);
+		Relation<Integer> other = new Relation<Integer>("other", 2, Integer.class, null);
 		assertFalse(model.getDataRepresentations().contains(other));
 	}
 
 	@Test
 	void modelBuildingTest() {
-		Relation<Boolean> person = new Relation<>("Person", 1, false);
-		Relation<Integer> age = new Relation<Integer>("age", 1, null);
-		Relation<Boolean> friend = new Relation<>("friend", 2, false);
+		Relation<Boolean> person = new Relation<>("Person", 1,  Boolean.class,false);
+		Relation<Integer> age = new Relation<Integer>("age", 1, Integer.class, null);
+		Relation<Boolean> friend = new Relation<>("friend", 2,  Boolean.class,false);
 
 		ModelStore store = new ModelStoreImpl(Set.of(person, age, friend));
 		Model model = store.createModel();
@@ -56,7 +54,7 @@ class ModelTest {
 
 		assertEquals(3, model.get(age, Tuple.of(0)));
 		assertEquals(1, model.get(age, Tuple.of(1)));
-		assertEquals(null, model.get(age, Tuple.of(2)));
+		assertNull(model.get(age, Tuple.of(2)));
 
 		assertTrue(model.get(friend, Tuple.of(0, 1)));
 		assertFalse(model.get(friend, Tuple.of(0, 5)));
@@ -64,7 +62,7 @@ class ModelTest {
 
 	@Test
 	void modelBuildingArityFailTest() {
-		Relation<Boolean> person = new Relation<>("Person", 1, false);
+		Relation<Boolean> person = new Relation<>("Person", 1, Boolean.class, false);
 		ModelStore store = new ModelStoreImpl(Set.of(person));
 		Model model = store.createModel();
 
@@ -75,7 +73,7 @@ class ModelTest {
 
 	@Test
 	void modelBuildingNullFailTest() {
-		Relation<Integer> age = new Relation<Integer>("age", 1, null);
+		Relation<Integer> age = new Relation<Integer>("age", 1,  Integer.class,null);
 		ModelStore store = new ModelStoreImpl(Set.of(age));
 		Model model = store.createModel();
 
@@ -87,9 +85,9 @@ class ModelTest {
 
 	@Test
 	void modelUpdateTest() {
-		Relation<Boolean> person = new Relation<>("Person", 1, false);
-		Relation<Integer> age = new Relation<Integer>("age", 1, null);
-		Relation<Boolean> friend = new Relation<>("friend", 2, false);
+		Relation<Boolean> person = new Relation<>("Person", 1, Boolean.class,false);
+		Relation<Integer> age = new Relation<Integer>("age", 1,  Integer.class,null);
+		Relation<Boolean> friend = new Relation<>("friend", 2, Boolean.class, false);
 
 		ModelStore store = new ModelStoreImpl(Set.of(person, age, friend));
 		Model model = store.createModel();
@@ -113,8 +111,8 @@ class ModelTest {
 
 	@Test
 	void restoreTest() {
-		Relation<Boolean> person = new Relation<Boolean>("Person", 1, false);
-		Relation<Boolean> friend = new Relation<Boolean>("friend", 2, false);
+		Relation<Boolean> person = new Relation<Boolean>("Person", 1, Boolean.class,false);
+		Relation<Boolean> friend = new Relation<Boolean>("friend", 2, Boolean.class,false);
 
 		ModelStore store = new ModelStoreImpl(Set.of(person, friend));
 		Model model = store.createModel();

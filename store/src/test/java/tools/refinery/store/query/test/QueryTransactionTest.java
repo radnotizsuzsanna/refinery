@@ -24,8 +24,8 @@ import tools.refinery.store.query.view.RelationView;
 class QueryTransactionTest {
 	@Test
 	void flushTest() {
-		Relation<Boolean> person = new Relation<>("Person", 1, false);
-		Relation<Boolean> asset = new Relation<>("Asset", 1, false);
+		Relation<Boolean> person = new Relation<>("Person", 1, Boolean.class,false);
+		Relation<Boolean> asset = new Relation<>("Asset", 1, Boolean.class,false);
 		RelationView<Boolean> persionView = new KeyOnlyRelationView(person);
 
 		List<Variable> parameters = Arrays.asList(new Variable("p1"));
@@ -48,10 +48,10 @@ class QueryTransactionTest {
 
 		model.flushChanges();
 		assertEquals(2, model.countResults(predicate));
-		
+
 		model.put(person, Tuple.of(4), true);
 		assertEquals(2, model.countResults(predicate));
-		
+
 		model.flushChanges();
 		assertEquals(3, model.countResults(predicate));
 	}

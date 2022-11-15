@@ -90,7 +90,7 @@ public class ModelSerializer {
 				System.out.println("Reading tupleLength: " + tupleLength);
 
 				//Relation létrehozása
-				var relation = new Relation<>(name, arity, defaultValue);
+				var relation = new Relation<>(name, arity, Boolean.class, defaultValue);
 				System.out.println("Relation created: " + relation.getName());
 
 				//VersionedMapStoreDeltaImpl létrehozása
@@ -103,6 +103,7 @@ public class ModelSerializer {
 				i++;
 			}
 		}
+		//TODO ezt hogyan lehet szépen
 		catch (IOException e){
 			if(e.getMessage().compareTo("Incomplete MapStore in file") == 0) throw e;
 			else throw new IOException("Incomplete Relation in file");
