@@ -6,6 +6,7 @@ import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -18,8 +19,13 @@ import java.util.Map.Entry;
 public class ModelSerializer {
 	HashMap<Class<?>, SerializerStrategy<?>> serializerStrategyMap;
 
-	public ModelSerializer(HashMap<Class<?>, SerializerStrategy<?>> serializerStrategyMap){
-		this.serializerStrategyMap = serializerStrategyMap;
+	public ModelSerializer(){
+		this.serializerStrategyMap = new HashMap<>();
+	}
+
+	public <T> void addStrategy(Class<T> valueType, SerializerStrategy<T> strategy){
+		serializerStrategyMap.put(valueType, strategy);
+
 	}
 
 	public void write(ModelStore store, DataOutputStream relations, HashMap<Relation<?>, DataOutputStream> streams) throws IOException {
@@ -31,9 +37,9 @@ public class ModelSerializer {
 					if (mapStore instanceof VersionedMapStoreDeltaImpl<?, ?> deltaStore) {
 						//TODO: hol érdemes létrehozni a strategyt?
 						SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(dataRepresentation.getValueType());
-						//Relation kiírása
+						//Writes out the Relation
 						serializerStrategy.writeRelation(relation, relations, streams, deltaStore);
-						//MapStore kiírása
+						//Writes out the MapStore
 						serializerStrategy.writeDeltaStore(relation,  deltaStore, streams.get(relation));
 					} else {
 						throw new UnsupportedOperationException("Only delta stores are supported!");
@@ -58,22 +64,22 @@ public class ModelSerializer {
 				int length = relations.readInt();
 				byte[] valueTypeByte = new byte[length];
 				relations.readFully(valueTypeByte);
-				String valueTypeString = new String(valueTypeByte, "UTF-8");
+				String valueTypeString = new String(valueTypeByte, StandardCharsets.UTF_8);
 				Class<?> valueTypeClass = Class.forName(valueTypeString);
 				System.out.println("\nReading Relation name: " + valueTypeString);
 
 				SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
 
-				//Relation létrehozása
+				//Creates Relation
 				var relation = serializerStrategy.readRelation(relations, streams);
 				System.out.println("Relation created: " + relation.getName());
 
-				//VersionedMapStoreDeltaImpl létrehozása
+				//Creates VersionedMapStoreDeltaImp
 				DataInputStream data = streams.get(relation);
 				VersionedMapStoreDeltaImpl<?,?> mapStore = serializerStrategy.readDeltaStore(relation, data);
 				System.out.println("VersionedMapStoreDeltaImpl created.");
 
-				//ModelStore létrehozása Relationből és VersionedMapStoreDeltaImpl-ből
+				//Creates ModelStore from Relation and VersionedMapStoreDeltaImpl
 				stores.put(relation, mapStore);
 				i++;
 			}

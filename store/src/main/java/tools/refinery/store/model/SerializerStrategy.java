@@ -10,8 +10,8 @@ import java.io.IOException;
 import java.util.HashMap;
 
 public interface SerializerStrategy<T> {
-	void  writeRelation(Relation relation, DataOutputStream relations, HashMap<Relation<?>, DataOutputStream> streams, VersionedMapStore<?, ?> deltaStore) throws IOException;
-	Relation readRelation(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException;
-	public void writeDeltaStore(Relation relation, VersionedMapStoreDeltaImpl mapStore, DataOutputStream data) throws IOException;
+	void  writeRelation(Relation<?> relation, DataOutputStream relations, HashMap<Relation<?>, DataOutputStream> streams, VersionedMapStore<?, ?> deltaStore) throws IOException;
+	Relation<?> readRelation(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException;
+	void writeDeltaStore(Relation<?> relation, VersionedMapStoreDeltaImpl<?,?> mapStore, DataOutputStream data) throws IOException;
 	VersionedMapStoreDeltaImpl<?,?> readDeltaStore(Relation<?> relation, DataInputStream data) throws IOException;
 }

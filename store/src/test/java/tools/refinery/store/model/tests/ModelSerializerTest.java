@@ -1,7 +1,6 @@
 package tools.refinery.store.model.tests;
 
 import org.junit.jupiter.api.Test;
-import tools.refinery.store.map.VersionedMapStoreDeltaImpl;
 import tools.refinery.store.model.*;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
@@ -32,12 +31,14 @@ class ModelSerializerTest {
 
 		long secondVersion = model.commit();
 
-		//HashMap for the strategy - type pairs
-		HashMap<Class<?>, SerializerStrategy<?>> serializerStrategyMap = new HashMap<>();
-		SerializerStrategy<?> strategy = new TupleBooleanSerializer();
-		serializerStrategyMap.put(Boolean.class, strategy);
 
-		ModelSerializer serializer = new ModelSerializer(serializerStrategyMap);
+		ModelSerializer serializer = new ModelSerializer();
+
+		//TODO
+		@SuppressWarnings({"unchecked"})
+		SerializerStrategy<Boolean> strategy = new TupleBooleanSerializer<Boolean>();
+		serializer.addStrategy(Boolean.class,strategy);
+
 
 		//The HasMaps contain the DataStreams for serializing the MapStores (MapStores will be stored in separate files)
 		HashMap<Relation<?>, DataOutputStream> streamMapOut = new HashMap<>();

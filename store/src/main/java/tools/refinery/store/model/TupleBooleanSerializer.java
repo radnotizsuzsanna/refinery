@@ -10,11 +10,77 @@ import tools.refinery.store.model.representation.Relation;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 
-public class TupleBooleanSerializer implements SerializerStrategy{
+public class TupleBooleanSerializer<T> implements SerializerStrategy<T>{
 	@Override
-	public void writeDeltaStore(Relation relation, VersionedMapStoreDeltaImpl mapStore, DataOutputStream data) throws IOException {
+	public void writeRelation(Relation<?> relation, DataOutputStream relations, HashMap<Relation<?>, DataOutputStream> streams, VersionedMapStore<?, ?> deltaStore) throws IOException {
+		//Writes out Relation ValueType
+		Class<?> valueTypeClass = relation.getValueType();
+		String valueTypeString = valueTypeClass.toString();
+		//TODO ez így kicsit csúnya, de a toString odatette a class -t az osztály elé, ami miatt a Class.forName() nem tudta visszaalakítani
+		valueTypeString = valueTypeString.replace("class ", "");
+		byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
+		relations.writeInt(valueTypeByte.length);
+		relations.write(valueTypeByte);
+		System.out.println("\nWriting Relation valueType: " + valueTypeString);
+
+		//Writes out Relation name
+		String name = relation.getName();
+		byte[] nameByte = name.getBytes(StandardCharsets.UTF_8);
+		relations.writeInt(nameByte.length);
+		relations.write(nameByte);
+		System.out.println("\nWriting Relation name: " + relation.getName());
+
+		//Writes out Relation arity
+		relations.writeInt(relation.getArity());
+		System.out.println("Writing Relation arity: " + relation.getArity());
+
+		//Writes out defaultValue
+		relations.writeBoolean((boolean) relation.getDefaultValue());
+		System.out.println("Writing Relation defaultValue: " + relation.getDefaultValue());
+
+		//Writes out tuple length
+		int tupleLength = relation.getArity();
+		relations.writeInt(tupleLength);
+		System.out.println("Writing tupleLength: " + tupleLength);
+	}
+
+	@Override
+	public Relation<?> readRelation(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException {
+		//Reads Relation name
+		int length = relations.readInt();
+		byte[] nameByte = new byte[length];
+		relations.readFully(nameByte);
+		String name = new String(nameByte, StandardCharsets.UTF_8);
+		System.out.println("\nReading Relation name: " + name);
+
+		//Reads Relation arity
+		int arity = relations.readInt();
+		System.out.println("Reading Relation arity: " + arity);
+
+		//Reads defaultValue
+		boolean defaultValue = relations.readBoolean();
+		System.out.println("Reading Relation defaultValue: " + defaultValue);
+
+		//Reads Tuple length
+		int tupleLength = relations.readInt();
+		System.out.println("Reading tupleLength: " + tupleLength);
+
+		//Creates Relation
+		var relation = new Relation<>(name, arity, Boolean.class, defaultValue);
+		System.out.println("Relation created: " + relation.getName());
+
+		//Creates VersionedMapStoreDeltaImpl
+		DataInputStream data = (DataInputStream) streams.get(relation);
+
+		return relation;
+	}
+
+
+	@Override
+	public void writeDeltaStore(Relation<?> relation, VersionedMapStoreDeltaImpl<?,?>  mapStore, DataOutputStream data) throws IOException {
 		for(int i = 0; i < mapStore.getStates().size(); i++){
 			MapTransaction<?, ?>  mapTransaction = mapStore.getState(i);
 			MapDelta<?, ?>[] deltasOfTransaction = mapTransaction.deltas();
@@ -36,29 +102,29 @@ public class TupleBooleanSerializer implements SerializerStrategy{
 			data.writeInt(mapTransaction.deltas().length);
 			System.out.println("\tWriting number of deltas: " + mapTransaction.deltas().length);
 
-			for(int j = 0; j < deltasOfTransaction.length; j++){
+			for (MapDelta<?, ?> mapDelta : deltasOfTransaction) {
 				//Writes out key
-				Tuple tuple = (Tuple) deltasOfTransaction[j].key();
-				System.out.println("\t\tWriting key: " + deltasOfTransaction[j].key());
+				Tuple tuple = (Tuple) mapDelta.key();
+				System.out.println("\t\tWriting key: " + mapDelta.key());
 
-				for(int k = 0; k < relation.getArity(); k++){
+				for (int k = 0; k < relation.getArity(); k++) {
 					data.writeInt(tuple.get(k));
 				}
 
 				//Writes out new and old value
-				if(deltasOfTransaction[j].oldValue() == null) data.writeBoolean(false);
-				else data.writeBoolean((boolean) deltasOfTransaction[j].oldValue());
-				System.out.println("\t\tWriting oldaValue:  " + deltasOfTransaction[j].oldValue());
+				if (mapDelta.oldValue() == null) data.writeBoolean(false);
+				else data.writeBoolean((boolean) mapDelta.oldValue());
+				System.out.println("\t\tWriting oldaValue:  " + mapDelta.oldValue());
 
-				data.writeBoolean((boolean) deltasOfTransaction[j].newValue());
-				System.out.println("\t\tWriting newValue:  " +  deltasOfTransaction[j].newValue());
+				data.writeBoolean((boolean) mapDelta.newValue());
+				System.out.println("\t\tWriting newValue:  " + mapDelta.newValue());
 
 			}
 		}
 	}
 
 	@Override
-	public VersionedMapStoreDeltaImpl<?, ?> readDeltaStore(Relation relation, DataInputStream data) throws IOException {
+	public VersionedMapStoreDeltaImpl<?, ?> readDeltaStore(Relation<?> relation, DataInputStream data) throws IOException {
 		LongObjectHashMap<MapTransaction<Tuple, Boolean>> mapTransactionArray = new LongObjectHashMap<>();
 		try{
 			while(data.available()!=0){
@@ -103,69 +169,5 @@ public class TupleBooleanSerializer implements SerializerStrategy{
 
 		boolean defaultValue = (boolean) relation.getDefaultValue();
 		return new VersionedMapStoreDeltaImpl<>(defaultValue, mapTransactionArray);
-	}
-
-	@Override
-	public void writeRelation(Relation relation, DataOutputStream relations, HashMap streams, VersionedMapStore deltaStore) throws IOException {
-		//Writes out Relation ValueType
-		Class<?> valueTypeClass = relation.getValueType();
-		String valueTypeString = valueTypeClass.toString();
-		//TODO ez így kicsit csúnya, de a toString odatette a class -t az osztály elé, ami miatt a Class.forName() nem tudta visszaalakítani
-		valueTypeString = valueTypeString.replace("class ", "");
-		byte[] valueTypeByte = valueTypeString.getBytes("UTF-8");
-		relations.writeInt(valueTypeByte.length);
-		relations.write(valueTypeByte);
-		System.out.println("\nWriting Relation valueType: " + valueTypeString);
-
-		//Writes out Relation name
-		String name = relation.getName();
-		byte[] nameByte = name.getBytes("UTF-8");
-		relations.writeInt(nameByte.length);
-		relations.write(nameByte);
-		System.out.println("\nWriting Relation name: " + relation.getName());
-
-		//Writes out Relation arity
-		relations.writeInt(relation.getArity());
-		System.out.println("Writing Relation arity: " + relation.getArity());
-
-		//Writes out defaultValue
-		relations.writeBoolean((boolean) relation.getDefaultValue());
-		System.out.println("Writing Relation defaultValue: " + relation.getDefaultValue());
-
-		//Writes out tuple length
-		int tupleLength = relation.getArity();
-		relations.writeInt(tupleLength);
-		System.out.println("Writing tupleLength: " + tupleLength);
-	}
-
-	@Override
-	public Relation readRelation(DataInputStream relations, HashMap streams) throws IOException {
-		//Relation name bolvasása
-		int length = relations.readInt();
-		byte[] nameByte = new byte[length];
-		relations.readFully(nameByte);
-		String name = new String(nameByte,"UTF-8");
-		System.out.println("\nReading Relation name: " + name);
-
-		//Relation aritás beolvasása
-		int arity = relations.readInt();
-		System.out.println("Reading Relation arity: " + arity);
-
-		//Relation defaultValue beolvasása
-		boolean defaultValue = relations.readBoolean();
-		System.out.println("Reading Relation defaultValue: " + defaultValue);
-
-		//Tuple length beolvasasa
-		int tupleLength = relations.readInt();
-		System.out.println("Reading tupleLength: " + tupleLength);
-
-		//Relation létrehozása
-		var relation = new Relation<>(name, arity, Boolean.class, defaultValue);
-		System.out.println("Relation created: " + relation.getName());
-
-		//VersionedMapStoreDeltaImpl létrehozása
-		DataInputStream data = (DataInputStream) streams.get(relation);
-
-		return relation;
 	}
 }
