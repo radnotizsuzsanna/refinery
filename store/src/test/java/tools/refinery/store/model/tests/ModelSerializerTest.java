@@ -14,13 +14,16 @@ class ModelSerializerTest {
 	@Test
 	void modelBuildingTest() throws IOException {
 		Relation<Boolean> person = new Relation<>("person", 1, Boolean.class,false);
+		Relation<Integer> age = new Relation<>("age", 1, Integer.class,0);
 		Relation<Boolean> friend = new Relation<>("friend", 2, Boolean.class,false);
 
-		ModelStore store = new ModelStoreImpl(Set.of(person, friend));
+		ModelStore store = new ModelStoreImpl(Set.of(person, age, friend));
 		Model model = store.createModel();
 
 		model.put(person, Tuple.of(0), true);
 		model.put(person, Tuple.of(1), true);
+		model.put(age, Tuple.of(0), 21);
+		model.put(age, Tuple.of(1), 34);
 		model.put(friend, Tuple.of(0, 1), true);
 		model.put(friend, Tuple.of(1, 0), true);
 
@@ -34,10 +37,10 @@ class ModelSerializerTest {
 
 		ModelSerializer serializer = new ModelSerializer();
 
-		//TODO
-		@SuppressWarnings({"unchecked"})
-		SerializerStrategy<Boolean> strategy = new TupleBooleanSerializer<Boolean>();
-		serializer.addStrategy(Boolean.class,strategy);
+		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer<>();
+		serializer.addStrategy(Boolean.class,strategyBoolean);
+		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer<>();
+		serializer.addStrategy(Integer.class,strategyInteger);
 
 
 		//The HasMaps contain the DataStreams for serializing the MapStores (MapStores will be stored in separate files)

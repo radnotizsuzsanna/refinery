@@ -66,7 +66,6 @@ public class ModelSerializer {
 				relations.readFully(valueTypeByte);
 				String valueTypeString = new String(valueTypeByte, StandardCharsets.UTF_8);
 				Class<?> valueTypeClass = Class.forName(valueTypeString);
-				System.out.println("\nReading Relation name: " + valueTypeString);
 
 				SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
 
