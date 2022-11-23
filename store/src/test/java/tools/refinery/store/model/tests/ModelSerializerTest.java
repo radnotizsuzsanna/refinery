@@ -6,9 +6,9 @@ import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ModelSerializerTest {
 	@Test
@@ -37,9 +37,10 @@ class ModelSerializerTest {
 
 		ModelSerializer serializer = new ModelSerializer();
 
-		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer<>();
+		//TODO
+		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer();
 		serializer.addStrategy(Boolean.class,strategyBoolean);
-		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer<>();
+		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer();
 		serializer.addStrategy(Integer.class,strategyInteger);
 
 
@@ -80,8 +81,55 @@ class ModelSerializerTest {
 		//Deserializes the ModelStore
 		try {
 			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			compareStores(store,store2);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	void compareStores(ModelStore store, ModelStore store2){
+		var dataRepresentationSet =  store.getDataRepresentations();
+		HashMap<String, Class<?>> dataRepresentationHashMap = new HashMap<>();
+		for (DataRepresentation<?, ?> item : dataRepresentationSet){
+			dataRepresentationHashMap.put(item.getName(), item.getValueType());
+		}
+		var dataRepresentationSet2 =  store2.getDataRepresentations();
+		HashMap<String, Class<?>> dataRepresentationHashMap2 = new HashMap<>();
+		for (DataRepresentation<?, ?> item : dataRepresentationSet2){
+			dataRepresentationHashMap2.put(item.getName(), item.getValueType());
+		}
+		assertTrue(dataRepresentationHashMap.size() == dataRepresentationHashMap2.size());
+		assertTrue(dataRepresentationHashMap.equals(dataRepresentationHashMap2));
+		//The two stores have the same amount of data reprezentations, and they contain the same name-valuetype pairs
+
+		assertTrue(store.getStates().equals(store2.getStates()));
+		//The two stores have the same states
+
+		//TODO Ezt hogy?
+		HashSet <Long> states = new HashSet<>((Collection) store.getStates());
+
+		//checks if the two modelStores' states' models are the same -> for every dataRepresentation, they have the same keys and values
+		for (Long item : states){
+			compareIfStatesHaveTheSameModel(store, store2, item);
+		}
+	}
+	private void compareIfStatesHaveTheSameModel(ModelStore store, ModelStore store2, Long state){
+		//gets the cursors with getall, the puts them in HashMaps, then compare
+		var dataRepresentations = store.getDataRepresentations();
+		Model model = store.createModel(state);
+		Model model2 = store.createModel(state);
+		HashMap<Object, Object> cursorMap = new HashMap();
+		HashMap<Object, Object> cursorMap2 = new HashMap();
+		for (DataRepresentation<?, ?> item : dataRepresentations){
+			var cursor = model.getAll(item);
+			var cursor2 = model2.getAll(item);
+			var key = cursor.getKey();
+			var value = cursor.getValue();
+			cursorMap.put(key,value);
+			var key2 = cursor2.getKey();
+			var value2 = cursor2.getValue();
+			cursorMap2.put(key2, value2);
+		}
+		assertTrue(cursorMap.equals(cursorMap2));
 	}
 }

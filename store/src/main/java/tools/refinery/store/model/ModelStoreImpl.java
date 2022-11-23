@@ -26,7 +26,8 @@ import tools.refinery.store.model.representation.Relation;
 
 public class ModelStoreImpl implements ModelStore {
 
-	final Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores;
+
+	public final Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores;
 
 	public ModelStoreImpl(Set<DataRepresentation<?, ?>> dataRepresentations) {
 		this(dataRepresentations, ModelStoreConfig.defaultConfig);
@@ -37,7 +38,6 @@ public class ModelStoreImpl implements ModelStore {
 		initStores(stores, dataRepresentations, config);
 	}
 
-	// Inci írta bele
 	public ModelStoreImpl(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> store){
 		stores = store;
 	}
