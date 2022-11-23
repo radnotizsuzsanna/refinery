@@ -14,6 +14,7 @@ public class Relation<D> extends DataRepresentation<Tuple, D> {
 		this.arity = arity;
 	}
 
+
 	@Override
 	public String getName() {
 		return name;
