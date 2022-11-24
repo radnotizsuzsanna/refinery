@@ -90,7 +90,7 @@ class ModelSerializerTest {
 		//Deserializes the ModelStore
 		try {
 			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
-			//compareStores(store,store2);
+			compareStores(store,store2);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -116,16 +116,17 @@ class ModelSerializerTest {
 		//var sotre2States= store2.getStates();
 
 
-		assertTrue(store.getStates().equals(store2.getStates()));
+		var states1 = store.getStates();
+		var states2 = store2.getStates();
+
+
+		//assertTrue(store.getStates().equals(store2.getStates()));
 		//The two stores have the same states
 
-		//TODO Ezt hogy?
-		HashSet <Long> states = new HashSet<>((Collection) store.getStates());
 
-		//checks if the two modelStores' states' models are the same -> for every dataRepresentation, they have the same keys and values
-		for (Long item : states){
+		store.getStates().forEach((item) -> {
 			compareIfStatesHaveTheSameModel(store, store2, item);
-		}
+		});
 	}
 	private void compareIfStatesHaveTheSameModel(ModelStore store, ModelStore store2, Long state){
 		//gets the cursors with getall, the puts them in HashMaps, then compare

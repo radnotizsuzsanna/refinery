@@ -41,7 +41,10 @@ public class VersionedMapDeltaImpl<K, V> implements VersionedMap<K, V> {
 	public void restore(long state) {
 		// 1. restore uncommited states
 		MapDelta<K, V>[] uncommited = this.uncommitedStore.extractAndDeleteDeltas();
-		backward(uncommited);
+		if(uncommited!=null) {
+			backward(uncommited);
+		}
+
 		// 2. get common ancestor
 		List<MapDelta<K, V>[]> forward = new ArrayList<>();
 		if (this.previous == null) {

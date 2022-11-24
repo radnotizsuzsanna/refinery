@@ -42,6 +42,7 @@ public class ModelStoreImpl implements ModelStore {
 		stores = store;
 	}
 
+
 	private void initStores(Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> result,
 			Set<DataRepresentation<?, ?>> dataRepresentations, ModelStoreConfig config) {
 		if (config.stateBasedConfig == null) {

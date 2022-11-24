@@ -49,7 +49,7 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 		if(deltas == null || deltas.length == 0) {
 			//TODO akkor is hozzáad egyet a stateshez, ha az csak az előző
 			//TODO Ideiglenesen kikommenteztem hogy működjön a tesztem
-			//states.put(version, previous);
+			states.put(version, previous);
 			return previous;
 		} else {
 			MapTransaction<K, V> transaction = new MapTransaction<>(deltas, version, previous);
