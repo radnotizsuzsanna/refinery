@@ -29,7 +29,6 @@ class ModelSerializerTest {
 		model.put(age, Tuple.of(0), 21);
 		model.put(age, Tuple.of(1), 34);
 		model.put(friend, Tuple.of(0, 1), true);
-		model.put(friend, Tuple.of(1, 0), true);
 		model.put(girl, Tuple.of(0), TRUE);
 		model.put(girl, Tuple.of(1), UNKNOWN);
 
@@ -90,6 +89,7 @@ class ModelSerializerTest {
 		//Deserializes the ModelStore
 		try {
 			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			//serializer.write(store2, relationsOutputStream2, streamMapOut);
 			compareStores(store,store2);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -120,9 +120,8 @@ class ModelSerializerTest {
 		var states2 = store2.getStates();
 
 
-		//assertTrue(store.getStates().equals(store2.getStates()));
+		assertTrue(store.getStates().equals(store2.getStates()));
 		//The two stores have the same states
-
 
 		store.getStates().forEach((item) -> {
 			compareIfStatesHaveTheSameModel(store, store2, item);
@@ -132,7 +131,7 @@ class ModelSerializerTest {
 		//gets the cursors with getall, the puts them in HashMaps, then compare
 		var dataRepresentations = store.getDataRepresentations();
 		Model model = store.createModel(state);
-		Model model2 = store.createModel(state);
+		Model model2 = store2.createModel(state);
 		HashMap<Object, Object> cursorMap = new HashMap();
 		HashMap<Object, Object> cursorMap2 = new HashMap();
 		for (DataRepresentation<?, ?> item : dataRepresentations){

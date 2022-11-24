@@ -188,26 +188,37 @@ public class ModelSerializer {
 			MapDelta<Tuple, T>[] deltasOfTransaction = mapTransaction.deltas();
 
 			//Writes out the version and the parent id of the mapTransaction
-			data.writeLong(mapTransaction.version());
+			data.writeLong(i);
+			System.out.println("\tWriting version of transaction: " + i);
 
-			System.out.println("\tWriting version of transaction: " + mapTransaction.version());
 
-			if(mapTransaction.parent() == null) {
-				data.writeLong(-1);
-				System.out.println("\tWriting parent of transaction: -1");
+
+			int deltasLength = 0;
+
+			if(mapTransaction.version() == i){
+				if(mapTransaction.parent() == null) {
+					data.writeLong(-1);
+					System.out.println("\tWriting parent of transaction: -1");
+				}
+				else{
+					data.writeLong(mapTransaction.parent().version());
+					System.out.println("\tWriting parent of transaction: " + mapTransaction.parent().version());
+				}
+				deltasLength = mapTransaction.deltas().length;
 			}
 			else{
-				data.writeLong(mapTransaction.parent().version());
-				System.out.println("\tWriting parent of transaction: " + mapTransaction.parent().version());
+				data.writeLong(i-1);
+				System.out.println("\tWriting parent of transaction: " + (i-1));
 			}
 
 			//Writes out the number of deltas
-			data.writeInt(mapTransaction.deltas().length);
-			System.out.println("\tWriting number of deltas: " + mapTransaction.deltas().length);
+			data.writeInt(deltasLength);
+			System.out.println("\tWriting number of deltas: " + deltasLength);
 
-			for (MapDelta<Tuple, T> mapDelta : deltasOfTransaction) {
+			for (int j = 0; j < deltasLength; j++) {
+				MapDelta<Tuple, T> mapDelta = deltasOfTransaction[j];
 				//Writes out key
-				Tuple tuple = (Tuple) mapDelta.key();
+				Tuple tuple = mapDelta.key();
 				System.out.println("\t\tWriting key: " + mapDelta.key());
 
 				for (int k = 0; k < relation.getArity(); k++) {
@@ -233,35 +244,42 @@ public class ModelSerializer {
 				System.out.println("\tReading version of transaction: " + version);
 				long parent = data.readLong();
 				System.out.println("\tReading parent of transaction: " + parent);
-				int num = data.readInt();
-				System.out.println("\tReading number of deltas: " + num);
+				int deltasLength = data.readInt();
+				System.out.println("\tReading number of deltas: " + deltasLength);
 
-				var deltas = new MapDelta[num];
-				for(int j = 0; j < num; j++){
-					//Reads the elements of the tuple
-					int[] tupleArray = new int[relation.getArity()];
-					for(int k = 0; k < relation.getArity(); k++){
-						tupleArray[k] = data.readInt();
-					}
-					Tuple tuple = Tuple.of(tupleArray);
-					System.out.println("\t\tReading tuple: " + tuple);
+				if(deltasLength == 0){
+					MapTransaction<Tuple, T> parentTransaction = mapTransactionArray.get(parent);
+					mapTransactionArray.put(version, parentTransaction);
 
-					//Reads the old and new value
-					var oldValue = serializerStrategy.readValue(data);
-					System.out.println("\t\tReading oldValue: " + oldValue);
-
-					var newValue = serializerStrategy.readValue(data);
-					System.out.println("\t\tReading newValue: " + newValue);
-					deltas[j] = new MapDelta<>(tuple, oldValue, newValue);
-				}
-				if(parent == -1){
-					//noinspection unchecked
-					mapTransactionArray.put(version, new MapTransaction<Tuple, T>(deltas, version, null));
 				}
 				else{
-					MapTransaction<Tuple, T> parentTransaction = mapTransactionArray.get(parent);
-					//noinspection unchecked
-					mapTransactionArray.put(version, new MapTransaction<Tuple, T>(deltas, version, parentTransaction));
+					var deltas = new MapDelta[deltasLength];
+					for(int j = 0; j < deltasLength; j++){
+						//Reads the elements of the tuple
+						int[] tupleArray = new int[relation.getArity()];
+						for(int k = 0; k < relation.getArity(); k++){
+							tupleArray[k] = data.readInt();
+						}
+						Tuple tuple = Tuple.of(tupleArray);
+						System.out.println("\t\tReading tuple: " + tuple);
+
+						//Reads the old and new value
+						var oldValue = serializerStrategy.readValue(data);
+						System.out.println("\t\tReading oldValue: " + oldValue);
+
+						var newValue = serializerStrategy.readValue(data);
+						System.out.println("\t\tReading newValue: " + newValue);
+						deltas[j] = new MapDelta<>(tuple, oldValue, newValue);
+					}
+					if(parent == -1){
+						//noinspection unchecked
+						mapTransactionArray.put(version, new MapTransaction<Tuple, T>(deltas, version, null));
+					}
+					else{
+						MapTransaction<Tuple, T> parentTransaction = mapTransactionArray.get(parent);
+						//noinspection unchecked
+						mapTransactionArray.put(version, new MapTransaction<Tuple, T>(deltas, version, parentTransaction));
+					}
 				}
 			}
 		}
