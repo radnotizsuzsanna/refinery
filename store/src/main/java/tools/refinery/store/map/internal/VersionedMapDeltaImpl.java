@@ -31,7 +31,6 @@ public class VersionedMapDeltaImpl<K, V> implements VersionedMap<K, V> {
 
 	@Override
 	public long commit() {
-		//TODO itt miert null lesz a deltas? - mert az elso storehoz nem adtunk hozza semmit
 		MapDelta<K, V>[] deltas = uncommitedStore.extractAndDeleteDeltas();
 		long[] versionContainer = new long[1];
 		this.previous = this.store.appendTransaction(deltas, previous, versionContainer);
@@ -96,6 +95,7 @@ public class VersionedMapDeltaImpl<K, V> implements VersionedMap<K, V> {
 	public V put(K key, V value) {
 		if (value == defalutValue) {
 			V res = current.remove(key);
+			//TODO itt azt hiszi, hogy nincsen változás, pedig van, hozzá akarok adni egy mapDeltát
 			if (res == null) {
 				// no changes
 				return defalutValue;

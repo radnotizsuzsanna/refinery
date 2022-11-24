@@ -104,7 +104,7 @@ public class ModelImpl implements Model {
 			if (versionSet) {
 				if (version != newVersion) {
 					throw new IllegalStateException(
-							"Maps in model have different versions! (" + version + " and" + newVersion + ")");
+							"Maps in model have different versions! (" + version + " and " + newVersion + ")");
 				}
 			} else {
 				version = newVersion;
