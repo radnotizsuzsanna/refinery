@@ -1,6 +1,7 @@
 package tools.refinery.store.model.tests;
 
 import org.junit.jupiter.api.Test;
+import tools.refinery.store.map.Cursor;
 import tools.refinery.store.model.*;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
@@ -9,6 +10,7 @@ import tools.refinery.store.model.representation.TruthValue;
 import java.io.*;
 import java.util.*;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static tools.refinery.store.model.representation.TruthValue.TRUE;
 import static tools.refinery.store.model.representation.TruthValue.UNKNOWN;
@@ -94,6 +96,8 @@ class ModelSerializerTest {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+
+
 	}
 
 	void compareStores(ModelStore store, ModelStore store2){
@@ -121,29 +125,34 @@ class ModelSerializerTest {
 
 
 		assertTrue(store.getStates().equals(store2.getStates()));
-		//The two stores have the same states
 
+		//The two stores have the same states
 		store.getStates().forEach((item) -> {
 			compareIfStatesHaveTheSameModel(store, store2, item);
 		});
 	}
 	private void compareIfStatesHaveTheSameModel(ModelStore store, ModelStore store2, Long state){
+		//System.out.println("state: " + state);
 		//gets the cursors with getall, the puts them in HashMaps, then compare
 		var dataRepresentations = store.getDataRepresentations();
 		Model model = store.createModel(state);
 		Model model2 = store2.createModel(state);
-		HashMap<Object, Object> cursorMap = new HashMap();
+		HashMap<Object, Object> cursorMap1 = new HashMap();
 		HashMap<Object, Object> cursorMap2 = new HashMap();
-		for (DataRepresentation<?, ?> item : dataRepresentations){
-			var cursor = model.getAll(item);
-			var cursor2 = model2.getAll(item);
-			var key = cursor.getKey();
-			var value = cursor.getValue();
-			cursorMap.put(key,value);
-			var key2 = cursor2.getKey();
-			var value2 = cursor2.getValue();
-			cursorMap2.put(key2, value2);
+		for (DataRepresentation<?, ?> item : dataRepresentations) {
+			//System.out.println(item.getName());
+			Cursor<?, ?> cursor1 = model.getAll(item);
+			Cursor<?, ?> cursor2 = model2.getAll(item);
+			do {
+				var key1 = cursor1.getKey();
+				var value1 = cursor1.getValue();
+				cursorMap1.put(key1, value1);
+				var key2 = cursor2.getKey();
+				var value2 = cursor2.getValue();
+				//System.out.println("key1: " + key1 + " key2: " + key2 + " value1: " + value1 + " value2: " + value2);
+				cursorMap2.put(key2, value2);
+			} while (cursor1.move() && cursor2.move());
 		}
-		assertTrue(cursorMap.equals(cursorMap2));
+		assertEquals(cursorMap1, cursorMap2);
 	}
 }

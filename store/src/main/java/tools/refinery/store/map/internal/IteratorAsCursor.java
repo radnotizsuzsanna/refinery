@@ -12,17 +12,17 @@ import tools.refinery.store.map.VersionedMap;
 public class IteratorAsCursor<K, V> implements Cursor<K, V> {
 	final Iterator<Entry<K, V>> iterator;
 	final VersionedMap<K, V> source;
-	
+
 	private boolean terminated;
 	private K key;
 	private V value;
-	
+
 	public IteratorAsCursor(VersionedMap<K, V> source, Map<K, V> current) {
 		this.iterator = current.entrySet().iterator();
 		this.source = source;
 		move();
 	}
-	
+
 	@Override
 	public K getKey() {
 		return key;
@@ -38,9 +38,12 @@ public class IteratorAsCursor<K, V> implements Cursor<K, V> {
 		return terminated;
 	}
 
+
 	@Override
 	public boolean move() {
+		//TODO ez miért nem fordítva?
 		terminated = iterator.hasNext();
+		terminated = !iterator.hasNext();
 		if(terminated) {
 			this.key = null;
 			this.value = null;

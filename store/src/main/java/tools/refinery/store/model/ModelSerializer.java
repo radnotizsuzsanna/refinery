@@ -30,6 +30,8 @@ public class ModelSerializer {
 		serializerStrategyMap.put(valueType, strategy);
 
 	}
+
+
 	public void write(ModelStore store, DataOutputStream relations, HashMap<Relation<?>, DataOutputStream> streams) throws IOException {
 		if (store instanceof ModelStoreImpl impl) {
 			for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : impl.stores.entrySet()) {
@@ -105,6 +107,9 @@ public class ModelSerializer {
 
 		writeDeltaStore(relation, versionedMapStore, streams.get(relation), serializerStrategy);
 	}
+
+
+
 
 	public ModelStore read(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException {
 		return readRelation(relations, streams);
