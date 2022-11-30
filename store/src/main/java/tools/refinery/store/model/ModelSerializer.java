@@ -171,8 +171,8 @@ public class ModelSerializer {
 		}
 		//TODO exception helyett visszatérés
 		catch (IOException e){
-			if(e.getMessage().compareTo("Incomplete MapStore in file") == 0) throw e;
-			else throw new IOException("Incomplete Relation in file");
+			if(e.getMessage() == null) throw new IOException("Incomplete Relation in file");
+			else throw  e;
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}

@@ -11,7 +11,6 @@ import java.io.*;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static tools.refinery.store.model.representation.TruthValue.TRUE;
 import static tools.refinery.store.model.representation.TruthValue.UNKNOWN;
 
@@ -23,7 +22,7 @@ class ModelSerializerTest {
 
 	/**
 	 * Tests if the ModelSerializer can serialize a model store with bool, int and TruthValue value types and Tuple key type.
-	 * @throws IOException When the serialization or deserialization fails.
+	 * @throws IOException When the connection of the piped streams fails.
 	 */
 	@Test
 	void serializeModelWithDifferentTypesTest() throws IOException {
@@ -42,7 +41,7 @@ class ModelSerializerTest {
 		model.put(friend, Tuple.of(0, 1), true);
 		model.put(girl, Tuple.of(0), TRUE);
 		model.put(girl, Tuple.of(1), UNKNOWN);
-		long firstVersion = model.commit();
+		model.commit();
 
 		//Sets the serializer strategy for every type int the model
 		ModelSerializer serializer = new ModelSerializer();
@@ -54,8 +53,8 @@ class ModelSerializerTest {
 		serializer.addStrategy(TruthValue.class, strategyTruthValue);
 
 		List< DataRepresentation<?,?>> dataRepresentationList = store.getDataRepresentations().stream().toList();
-		initializeStreamMaps(dataRepresentationList);
-		initializeRelationStreams();
+		initializeStreamMapsWithPipedStreams(dataRepresentationList);
+		initializeRelationStreamsWithPipedStream();
 
 		try {
 			//Serializes the ModelStore
@@ -72,7 +71,7 @@ class ModelSerializerTest {
 
 	/**
 	 * Tests if the ModelSerializer can serialize a model store with an empty map store
-	 * @throws IOException When the serialization or deserialization fails.
+	 * @throws IOException When the connection of the piped streams fails.
 	 */
 	@Test
 	void serializeModelWithEmptyMapStore() throws IOException{
@@ -85,7 +84,7 @@ class ModelSerializerTest {
 		model.put(person, Tuple.of(0), true);
 		model.put(person, Tuple.of(1), true);
 
-		long firstVersion = model.commit();
+		model.commit();
 
 		//Sets the serializer strategy for every type int the model
 		ModelSerializer serializer = new ModelSerializer();
@@ -95,8 +94,8 @@ class ModelSerializerTest {
 		serializer.addStrategy(Integer.class,strategyInteger);
 
 		List< DataRepresentation<?,?>> dataRepresentationList = store.getDataRepresentations().stream().toList();
-		initializeStreamMaps(dataRepresentationList);
-		initializeRelationStreams();
+		initializeStreamMapsWithPipedStreams(dataRepresentationList);
+		initializeRelationStreamsWithPipedStream();
 
 		try {
 			//Serializes the ModelStore
@@ -113,7 +112,7 @@ class ModelSerializerTest {
 
 	/**
 	 * Tests if the ModelSerializer can serialize a model store with multiple commit
-	 * @throws IOException When the serialization or deserialization fails.
+	 * @throws IOException When the connection of the piped streams fails.
 	 */
 	@Test
 	void serializerWithMultipleCommitTest() throws IOException{
@@ -128,13 +127,13 @@ class ModelSerializerTest {
 		model.put(age, Tuple.of(0), 21);
 		model.put(age, Tuple.of(1), 34);
 
-		long firstVersion = model.commit();
+		model.commit();
 
 		model.put(person, Tuple.of(0), false);
 		model.put(person, Tuple.of(1), false);
 
-		long secondVersion = model.commit();
-		long thirdVersion = model.commit();
+		model.commit();
+		model.commit();
 
 		//Sets the serializer strategy for every type int the model
 		ModelSerializer serializer = new ModelSerializer();
@@ -144,11 +143,149 @@ class ModelSerializerTest {
 		serializer.addStrategy(Integer.class,strategyInteger);
 
 		List< DataRepresentation<?,?>> dataRepresentationList = store.getDataRepresentations().stream().toList();
-		initializeStreamMaps(dataRepresentationList);
-		initializeRelationStreams();
+		initializeStreamMapsWithPipedStreams(dataRepresentationList);
+		initializeRelationStreamsWithPipedStream();
 		try {
 			//Serializes the ModelStore
 			serializer.write(store, relationsOutputStream, streamMapOut);
+			//Deserializes the ModelStore
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			//Test if the ModelStore is the same after the serialization
+			compareStores(store,store2);
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Tests if the serializer can handle interrupted map store data while deserializing
+	 * @throws IOException When the connection of the piped streams fails.
+	 */
+	@Test
+	void serializationWithInterruptedMapStoreTest() throws IOException {
+		Relation<Boolean> person = new Relation<>("person", 1, Boolean.class,false);
+		Relation<Integer> age = new Relation<>("age", 1, Integer.class,0);
+
+		ModelStore store = new ModelStoreImpl(Set.of(person, age));
+		Model model = store.createModel();
+
+		model.put(person, Tuple.of(0), true);
+		model.put(person, Tuple.of(1), true);
+		model.put(age, Tuple.of(0), 21);
+		model.put(age, Tuple.of(1), 34);
+
+		model.commit();
+
+		model.put(person, Tuple.of(0), false);
+		model.put(person, Tuple.of(1), false);
+
+		model.commit();
+		model.commit();
+
+		//Sets the serializer strategy for every type int the model
+		ModelSerializer serializer = new ModelSerializer();
+		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer();
+		serializer.addStrategy(Boolean.class,strategyBoolean);
+		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer();
+		serializer.addStrategy(Integer.class,strategyInteger);
+
+		List< DataRepresentation<?,?>> dataRepresentationList = store.getDataRepresentations().stream().toList();
+
+		streamMapIn = new HashMap<>();
+		streamMapOut = new HashMap<>();
+
+		HashMap<Relation<?>, ByteArrayOutputStream> byteArrayOutputMap = new HashMap<>();
+		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentationList) {
+			ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
+			byteArrayOutputMap.put((Relation<?>) dataRepresentation, byteArrayOutput);
+			DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutput);
+			streamMapOut.put((Relation<?>) dataRepresentation, dataOutputStream);
+		}
+
+		initializeRelationStreamsWithPipedStream();
+
+		try {
+			//Serializes the ModelStore
+			serializer.write(store, relationsOutputStream, streamMapOut);
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		//HashMap<Relation<?>, ByteArrayInputStream> byteArrayInputMap = new HashMap<>();
+		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentationList) {
+			var byteArrayOutput = byteArrayOutputMap.get(dataRepresentation);
+			byte[] byteArray = byteArrayOutput.toByteArray();
+			//Creates the  ByteArrayInputStream with only 10 bytes of the byteArray so the mapStore's data will be interrupted
+			ByteArrayInputStream byteArrayInput = new ByteArrayInputStream(byteArray, 0, 10);
+			DataInputStream dataInputStream = new DataInputStream(byteArrayInput);
+			streamMapIn.put((Relation<?>) dataRepresentation, dataInputStream);
+		}
+
+		try {
+			//Deserializes the ModelStore
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			//Test if the ModelStore is the same after the serialization
+			compareStores(store,store2);
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Tests if the serializer can handle interrupted relation data while deserializing
+	 * @throws IOException When the connection of the piped streams fails.
+	 */
+	@Test
+	void serializationWithInterruptedRelationTest() throws IOException {
+		Relation<Boolean> person = new Relation<>("person", 1, Boolean.class,false);
+		Relation<Integer> age = new Relation<>("age", 1, Integer.class,0);
+
+		ModelStore store = new ModelStoreImpl(Set.of(person, age));
+		Model model = store.createModel();
+
+		model.put(person, Tuple.of(0), true);
+		model.put(person, Tuple.of(1), true);
+		model.put(age, Tuple.of(0), 21);
+		model.put(age, Tuple.of(1), 34);
+
+		model.commit();
+
+		model.put(person, Tuple.of(0), false);
+		model.put(person, Tuple.of(1), false);
+
+		model.commit();
+		model.commit();
+
+		//Sets the serializer strategy for every type int the model
+		ModelSerializer serializer = new ModelSerializer();
+		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer();
+		serializer.addStrategy(Boolean.class,strategyBoolean);
+		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer();
+		serializer.addStrategy(Integer.class,strategyInteger);
+
+		List< DataRepresentation<?,?>> dataRepresentationList = store.getDataRepresentations().stream().toList();
+		initializeStreamMapsWithPipedStreams(dataRepresentationList);
+
+		ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
+		relationsOutputStream = new DataOutputStream(byteArrayOutput);
+
+		try {
+			//Serializes the ModelStore
+			serializer.write(store, relationsOutputStream, streamMapOut);
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		byte[] byteArray = byteArrayOutput.toByteArray();
+		//Creates the  ByteArrayInputStream with only 2 bytes of the byteArray so the relation's data will be interrupted
+		ByteArrayInputStream byteArrayInput = new ByteArrayInputStream(byteArray, 0, 2);
+		DataInputStream relationsInputStream = new DataInputStream(byteArrayInput);
+
+		try {
 			//Deserializes the ModelStore
 			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
 			//Test if the ModelStore is the same after the serialization
@@ -164,13 +301,13 @@ class ModelSerializerTest {
 	 * @param dataRepresentationList The list of the data representations of the model store.
 	 * @throws IOException When the connecting of the piped streams fails.
 	 */
-	void initializeStreamMaps(List< DataRepresentation<?,?>> dataRepresentationList) throws IOException {
+	void initializeStreamMapsWithPipedStreams(List< DataRepresentation<?,?>> dataRepresentationList) throws IOException {
 		//The HasMaps contain the DataStreams for serializing the MapStores (MapStores will be stored in separate files)
 		streamMapIn = new HashMap<>();
 		streamMapOut = new HashMap<>();
 
-		PipedOutputStream pipedOutput = null;
-		PipedInputStream pipedInput = null;
+		PipedOutputStream pipedOutput;
+		PipedInputStream pipedInput;
 		for (DataRepresentation<?, ?> dataRepresentation : dataRepresentationList) {
 			pipedInput = new PipedInputStream();
 			pipedOutput = new PipedOutputStream();
@@ -188,7 +325,7 @@ class ModelSerializerTest {
 	 * Initializes the streams for serializing the relations with piped streams.
 	 * @throws IOException  When the connecting of the piped streams fails.
 	 */
-	void initializeRelationStreams() throws IOException {
+	void initializeRelationStreamsWithPipedStream() throws IOException {
 		PipedInputStream pipedInput = new PipedInputStream();
 		PipedOutputStream pipedOutput = new PipedOutputStream();
 		pipedInput.connect(pipedOutput);
