@@ -108,9 +108,6 @@ public class ModelSerializer {
 		writeDeltaStore(relation, versionedMapStore, streams.get(relation), serializerStrategy);
 	}
 
-
-
-
 	public ModelStore read(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException {
 		return readRelation(relations, streams);
 	}
@@ -163,7 +160,6 @@ public class ModelSerializer {
 				var relation = new Relation<T>(name, arity, valueTypeClass , defaultValue);
 				System.out.println("Relation created: " + relation.getName());
 
-
 				//Creates VersionedMapStoreDeltaImp
 				DataInputStream data = streams.get(relation);
 				VersionedMapStoreDeltaImpl<Tuple,T> mapStore = readDeltaStore(relation, data, serializerStrategy);
@@ -188,55 +184,56 @@ public class ModelSerializer {
 	}
 
 	public <T> void writeDeltaStore(Relation<T> relation, VersionedMapStoreDeltaImpl<Tuple, T> mapStore, DataOutputStream data, SerializerStrategy<T> serializerStrategy) throws IOException {
-		for(int i = 0; i < mapStore.getStates().size(); i++){
-			MapTransaction<Tuple, T> mapTransaction = mapStore.getState(i);
-			MapDelta<Tuple, T>[] deltasOfTransaction = mapTransaction.deltas();
+		//If the map store has at least one state, serializes the state(s)
+	 	if(mapStore.getState(0) != null){
+			for(int i = 0; i < mapStore.getStates().size(); i++){
+				MapTransaction<Tuple, T> mapTransaction = mapStore.getState(i);
+				MapDelta<Tuple, T>[] deltasOfTransaction = mapTransaction.deltas();
 
-			//Writes out the version and the parent id of the mapTransaction
-			data.writeLong(i);
-			System.out.println("\tWriting version of transaction: " + i);
+				//Writes out the version and the parent id of the mapTransaction
+				data.writeLong(i);
+				System.out.println("\tWriting version of transaction: " + i);
 
+				int deltasLength = 0;
 
-
-			int deltasLength = 0;
-
-			if(mapTransaction.version() == i){
-				if(mapTransaction.parent() == null) {
-					data.writeLong(-1);
-					System.out.println("\tWriting parent of transaction: -1");
+				if(mapTransaction.version() == i){
+					if(mapTransaction.parent() == null) {
+						data.writeLong(-1);
+						System.out.println("\tWriting parent of transaction: -1");
+					}
+					else{
+						data.writeLong(mapTransaction.parent().version());
+						System.out.println("\tWriting parent of transaction: " + mapTransaction.parent().version());
+					}
+					deltasLength = mapTransaction.deltas().length;
 				}
 				else{
-					data.writeLong(mapTransaction.parent().version());
-					System.out.println("\tWriting parent of transaction: " + mapTransaction.parent().version());
-				}
-				deltasLength = mapTransaction.deltas().length;
-			}
-			else{
-				data.writeLong(i-1);
-				System.out.println("\tWriting parent of transaction: " + (i-1));
-			}
-
-			//Writes out the number of deltas
-			data.writeInt(deltasLength);
-			System.out.println("\tWriting number of deltas: " + deltasLength);
-
-			for (int j = 0; j < deltasLength; j++) {
-				MapDelta<Tuple, T> mapDelta = deltasOfTransaction[j];
-				//Writes out key
-				Tuple tuple = mapDelta.key();
-				System.out.println("\t\tWriting key: " + mapDelta.key());
-
-				for (int k = 0; k < relation.getArity(); k++) {
-					data.writeInt(tuple.get(k));
+					data.writeLong(i-1);
+					System.out.println("\tWriting parent of transaction: " + (i-1));
 				}
 
-				//Writes out new and old value
-				if (mapDelta.oldValue() == null) serializerStrategy.writeValue(data, relation.getDefaultValue());
-				else serializerStrategy.writeValue(data, mapDelta.oldValue());
-				System.out.println("\t\tWriting oldValue:  " + mapDelta.oldValue());
+				//Writes out the number of deltas
+				data.writeInt(deltasLength);
+				System.out.println("\tWriting number of deltas: " + deltasLength);
 
-				serializerStrategy.writeValue(data, mapDelta.newValue());
-				System.out.println("\t\tWriting newValue:  " + mapDelta.newValue());
+				for (int j = 0; j < deltasLength; j++) {
+					MapDelta<Tuple, T> mapDelta = deltasOfTransaction[j];
+					//Writes out key
+					Tuple tuple = mapDelta.key();
+					System.out.println("\t\tWriting key: " + mapDelta.key());
+
+					for (int k = 0; k < relation.getArity(); k++) {
+						data.writeInt(tuple.get(k));
+					}
+
+					//Writes out new and old value
+					if (mapDelta.oldValue() == null) serializerStrategy.writeValue(data, relation.getDefaultValue());
+					else serializerStrategy.writeValue(data, mapDelta.oldValue());
+					System.out.println("\t\tWriting oldValue:  " + mapDelta.oldValue());
+
+					serializerStrategy.writeValue(data, mapDelta.newValue());
+					System.out.println("\t\tWriting newValue:  " + mapDelta.newValue());
+				}
 			}
 		}
 	}

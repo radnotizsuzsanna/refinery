@@ -16,8 +16,12 @@ import static tools.refinery.store.model.representation.TruthValue.TRUE;
 import static tools.refinery.store.model.representation.TruthValue.UNKNOWN;
 
 class ModelSerializerTest {
+	/**
+	 * Tests if the ModelSerializer can serialize a model store with bool, int and TruthValue value types and Tuple key type.
+	 * @throws IOException When the serialization or deserialization fails.
+	 */
 	@Test
-	void modelBuildingTest() throws IOException {
+	void serializeModelWithDifferentTypesTest() throws IOException {
 		Relation<Boolean> person = new Relation<>("person", 1, Boolean.class,false);
 		Relation<Integer> age = new Relation<>("age", 1, Integer.class,0);
 		Relation<Boolean> friend = new Relation<>("friend", 2, Boolean.class,false);
@@ -42,17 +46,14 @@ class ModelSerializerTest {
 		long secondVersion = model.commit();
 		long thirdVersion = model.commit();
 
-
+		//Sets the serializer strategy for every type int the model
 		ModelSerializer serializer = new ModelSerializer();
-
-		//TODO
 		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer();
 		serializer.addStrategy(Boolean.class,strategyBoolean);
 		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer();
 		serializer.addStrategy(Integer.class,strategyInteger);
 		SerializerStrategy<TruthValue> strategyTruthValue = new TupleTruthValueSerializer();
 		serializer.addStrategy(TruthValue.class, strategyTruthValue);
-
 
 		//The HasMaps contain the DataStreams for serializing the MapStores (MapStores will be stored in separate files)
 		HashMap<Relation<?>, DataOutputStream> streamMapOut = new HashMap<>();
@@ -79,6 +80,72 @@ class ModelSerializerTest {
 		DataOutputStream relationsOutputStream = new DataOutputStream(pipedOutput);
 		DataInputStream relationsInputStream = new DataInputStream(pipedInput);
 
+		//Serializes the ModelStore
+		try {
+			serializer.write(store, relationsOutputStream, streamMapOut);
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		//Deserializes the ModelStore
+		try {
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			//serializer.write(store2, relationsOutputStream2, streamMapOut);
+			compareStores(store,store2);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Tests if the ModelSerializer can serialize a model store with an empty map store
+	 * @throws IOException When the serialization or deserialization fails.
+	 */
+	@Test
+	void serializeModelWithEmptyMapStore() throws IOException{
+		Relation<Boolean> person = new Relation<>("person", 1, Boolean.class,false);
+		Relation<Integer> age = new Relation<>("age", 1, Integer.class,0);
+
+		ModelStore store = new ModelStoreImpl(Set.of(person, age));
+		Model model = store.createModel();
+
+		model.put(person, Tuple.of(0), true);
+		model.put(person, Tuple.of(1), true);
+
+		long firstVersion = model.commit();
+
+		//Sets the serializer strategy for every type int the model
+		ModelSerializer serializer = new ModelSerializer();
+		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer();
+		serializer.addStrategy(Boolean.class,strategyBoolean);
+		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer();
+		serializer.addStrategy(Integer.class,strategyInteger);
+
+		//The HasMaps contain the DataStreams for serializing the MapStores (MapStores will be stored in separate files)
+		HashMap<Relation<?>, DataOutputStream> streamMapOut = new HashMap<>();
+		HashMap<Relation<?>, DataInputStream> streamMapIn = new HashMap<>();
+
+		int numberOfRelations = store.getDataRepresentations().size();
+		List< DataRepresentation<?,?>> list = store.getDataRepresentations().stream().toList();
+		for(int i = 0; i < numberOfRelations; i++){
+			PipedInputStream pipedInput = new PipedInputStream();
+			PipedOutputStream pipedOutput = new PipedOutputStream();
+			pipedInput.connect(pipedOutput);
+
+			DataOutputStream dataOutputStream = new DataOutputStream(pipedOutput);
+			DataInputStream dataInputStream = new DataInputStream(pipedInput);
+
+			streamMapOut.put((Relation<?>) list.get(i), dataOutputStream);
+			streamMapIn.put((Relation<?>) list.get(i), dataInputStream);
+		}
+
+		//DataStreams for serializing the Relations of the ModelStore
+		PipedInputStream pipedInput = new PipedInputStream();
+		PipedOutputStream pipedOutput = new PipedOutputStream();
+		pipedInput.connect(pipedOutput);
+		DataOutputStream relationsOutputStream = new DataOutputStream(pipedOutput);
+		DataInputStream relationsInputStream = new DataInputStream(pipedInput);
 
 		//Serializes the ModelStore
 		try {
@@ -96,8 +163,6 @@ class ModelSerializerTest {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-
-
 	}
 
 	void compareStores(ModelStore store, ModelStore store2){
