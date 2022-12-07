@@ -121,7 +121,7 @@ public class ModelSerializer {
 			}
 		}
 		catch (IOException e){
-			if(e.getMessage() == null) throw new IOException("Incomplete Relation in file");
+			if(e.getMessage() == null) throw new IOException("Incomplete Relation in file.");
 			else throw  e;
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException(e);
@@ -302,7 +302,7 @@ public class ModelSerializer {
 		}
 		catch(IOException e){
 			//TODO ne exeptiont dobjunk, hanem tárjünk vissza és valahogy jelezzük, hogy meddig sikerült beolvasni
-			throw new IOException("Incomplete MapStore in file");
+			throw new IOException("Incomplete MapStore in file.");
 		}
 
 		var defaultValue = relation.getDefaultValue();

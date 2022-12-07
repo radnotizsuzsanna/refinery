@@ -10,7 +10,7 @@ import tools.refinery.store.model.representation.TruthValue;
 import java.io.*;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static tools.refinery.store.model.representation.TruthValue.TRUE;
 import static tools.refinery.store.model.representation.TruthValue.UNKNOWN;
 
@@ -184,17 +184,15 @@ class ModelSerializerTest {
 		model.put(age, Tuple.of(0), 21);
 		model.put(age, Tuple.of(1), 34);
 
-		var state0 = model.commit();
+		model.commit();
 
 		model.put(person, Tuple.of(0), false);
 		model.put(person, Tuple.of(1), false);
 
-		model.commit();
-		model.restore(state0);
+		var state1 = model.commit();
 
-		model.put(person, Tuple.of(0), true);
-		model.commit();
-
+		model.put(person, Tuple.of(2), true);
+		var state2 = model.commit();
 
 		//Sets the serializer strategy for every type int the model
 		ModelSerializer serializer = new ModelSerializer();
@@ -211,8 +209,23 @@ class ModelSerializerTest {
 			serializer.write(store, relationsOutputStream, streamMapOut);
 			//Deserializes the ModelStore
 			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+
+			Model model2 = store2.createModel(state2);
+
+			var get = model.get(person, Tuple.of(2));
+			assertTrue(get);
+			var get2 = model2.get(person, Tuple.of(2));
+			assertTrue(get2);
+
+			model.restore(state1);
+			assertNull(model.get(person, Tuple.of(2)));
+			//model2.restore(state1);
+			//assertFalse(model2.get(person, Tuple.of(2)));
+
+			//assertTrue(model.equals(model2));
+
 			//Test if the ModelStore is the same after the serialization
-			compareStores(store,store2);
+			//compareStores(store,store2);
 		}
 		catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
@@ -284,15 +297,11 @@ class ModelSerializerTest {
 			streamMapIn.put((Relation<?>) dataRepresentation, dataInputStream);
 		}
 
-		try {
-			//Deserializes the ModelStore
-			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
-			//Test if the ModelStore is the same after the serialization
-			compareStores(store,store2);
-		}
-		catch (IOException | ClassNotFoundException e) {
-			throw new RuntimeException(e);
-		}
+		Exception exception = assertThrows(IOException.class, () -> {
+			serializer.read(relationsInputStream, streamMapIn);
+		});
+
+		assertEquals(exception.getMessage(), "Incomplete MapStore in file.");
 	}
 
 	/**
@@ -333,6 +342,7 @@ class ModelSerializerTest {
 		ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
 		relationsOutputStream = new DataOutputStream(byteArrayOutput);
 
+
 		try {
 			//Serializes the ModelStore
 			serializer.write(store, relationsOutputStream, streamMapOut);
@@ -346,17 +356,12 @@ class ModelSerializerTest {
 		ByteArrayInputStream byteArrayInput = new ByteArrayInputStream(byteArray, 0, 2);
 		DataInputStream relationsInputStream = new DataInputStream(byteArrayInput);
 
-		try {
-			//Deserializes the ModelStore
-			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
-			//Test if the ModelStore is the same after the serialization
-			compareStores(store,store2);
-		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException(e);
-		}
+		Exception exception = assertThrows(IOException.class, () -> {
+			serializer.read(relationsInputStream, streamMapIn);
+		});
+
+		assertEquals(exception.getMessage(), "Incomplete Relation in file.");
+
 	}
 
 	/**

@@ -51,7 +51,9 @@ public class ModelImpl implements Model {
 
 	@Override
 	public <K, V> V get(DataRepresentation<K, V> representation, K key) {
+		System.out.println("");
 		return getMapValidateKey(representation, key).get(key);
+
 	}
 
 	@Override

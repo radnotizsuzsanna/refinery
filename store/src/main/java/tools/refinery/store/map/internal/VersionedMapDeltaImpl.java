@@ -86,6 +86,7 @@ public class VersionedMapDeltaImpl<K, V> implements VersionedMap<K, V> {
 
 	@Override
 	public V get(K key) {
+		System.out.println("");
 		return current.getOrDefault(key, defalutValue);
 	}
 
