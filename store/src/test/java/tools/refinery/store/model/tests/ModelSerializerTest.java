@@ -66,6 +66,8 @@ class ModelSerializerTest {
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -107,6 +109,8 @@ class ModelSerializerTest {
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -128,11 +132,12 @@ class ModelSerializerTest {
 		model.put(age, Tuple.of(1), 34);
 
 		model.commit();
+		model.commit();
 
 		model.put(person, Tuple.of(0), false);
 		model.put(person, Tuple.of(1), false);
 
-		model.commit();
+
 		model.commit();
 
 		//Sets the serializer strategy for every type int the model
@@ -154,6 +159,8 @@ class ModelSerializerTest {
 			compareStores(store,store2);
 		}
 		catch (IOException e) {
+			throw new RuntimeException(e);
+		} catch (ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -231,6 +238,8 @@ class ModelSerializerTest {
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -292,6 +301,8 @@ class ModelSerializerTest {
 			compareStores(store,store2);
 		}
 		catch (IOException e) {
+			throw new RuntimeException(e);
+		} catch (ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}

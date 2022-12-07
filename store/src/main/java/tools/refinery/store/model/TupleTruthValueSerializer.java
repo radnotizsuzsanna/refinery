@@ -13,7 +13,14 @@ public class TupleTruthValueSerializer implements SerializerStrategy<TruthValue>
 	@Override
 	public void writeValue(DataOutputStream stream, TruthValue value) throws IOException {
 		//TODO itt is switch legyen
-		int ordinal = value.ordinal();
+		int ordinal;
+		switch (value){
+			case TRUE -> ordinal = 0;
+			case FALSE -> ordinal = 1;
+			case UNKNOWN -> ordinal = 2;
+			case ERROR -> ordinal = 3;
+			default -> throw new IllegalStateException("Unexpected value: " +value);
+		}
 		stream.writeInt(ordinal);
 	}
 

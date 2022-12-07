@@ -100,28 +100,10 @@ public class ModelSerializer {
 		serializerStrategy.writeValue(relations, relation.getDefaultValue());
 		System.out.println("Writing Relation defaultValue: " + relation.getDefaultValue());
 
-		//Writes out tuple length
-		int tupleLength = relation.getArity();
-		relations.writeInt(tupleLength);
-		System.out.println("Writing tupleLength: " + tupleLength);
-
 		writeDeltaStore(relation, versionedMapStore, streams.get(relation), serializerStrategy);
 	}
 
-	public ModelStore read(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException {
-		return readRelation(relations, streams);
-	}
-
-	/**
-	 * Deserializes a relation with transactions stored in a delta map store.
-	 * @param relations The stream to read relation metadata from.
-	 * @param streams The streams to read relation contents from.
-	 * @return The model store with the deserialized data.
-	 * @param <T> The type of values to deserialize.
-	 * @throws IOException When the deserialization fails.
-	 */
-	private <T> ModelStore readRelation(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException {
-		//TODO
+	public ModelStore read(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException, ClassNotFoundException {
 		Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores = new HashMap<>();
 		try{
 			while(relations.available()!=0){
@@ -130,46 +112,15 @@ public class ModelSerializer {
 				byte[] valueTypeByte = new byte[length];
 				relations.readFully(valueTypeByte);
 				String valueTypeString = new String(valueTypeByte, StandardCharsets.UTF_8);
-				@SuppressWarnings("unchecked")
-				Class<T> valueTypeClass = (Class<T>) Class.forName(valueTypeString);
+				Class<?> valueTypeClass = Class.forName(valueTypeString);
 				System.out.println("\nReading Relation valueType: " + valueTypeString);
 
-				@SuppressWarnings("unchecked")
-				SerializerStrategy<T> serializerStrategy = (SerializerStrategy<T>) serializerStrategyMap.get(valueTypeClass);
-
-				//Reads Relation name
-				length = relations.readInt();
-				byte[] nameByte = new byte[length];
-				relations.readFully(nameByte);
-				String name = new String(nameByte, StandardCharsets.UTF_8);
-				System.out.println("\nReading Relation name: " + name);
-
-				//Reads Relation arity
-				int arity = relations.readInt();
-				System.out.println("Reading Relation arity: " + arity);
-
-				//Reads defaultValue
-				var defaultValue = serializerStrategy.readValue(relations);
-				System.out.println("Reading Relation defaultValue: " + defaultValue);
-
-				//Reads Tuple length
-				int tupleLength = relations.readInt();
-				System.out.println("Reading tupleLength: " + tupleLength);
-
-				//Creates Relation
-				var relation = new Relation<T>(name, arity, valueTypeClass , defaultValue);
-				System.out.println("Relation created: " + relation.getName());
-
-				//Creates VersionedMapStoreDeltaImp
-				DataInputStream data = streams.get(relation);
-				VersionedMapStoreDeltaImpl<Tuple,T> mapStore = readDeltaStore(relation, data, serializerStrategy);
-				System.out.println("VersionedMapStoreDeltaImpl created.");
-
+				//TODO ez igy nagyon csunya? :( A ? helyére nem tudom etenni a típust?
+				DataRepresentationVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass);
 				//Creates ModelStore from Relation and VersionedMapStoreDeltaImpl
-				stores.put(relation, mapStore);
+				stores.put(pair.dataRepresentation(), pair.mapStore());
 			}
 		}
-		//TODO exception helyett visszatérés
 		catch (IOException e){
 			if(e.getMessage() == null) throw new IOException("Incomplete Relation in file");
 			else throw  e;
@@ -181,10 +132,53 @@ public class ModelSerializer {
 		ModelStore store = new ModelStoreImpl(stores);
 		relations.close();
 		return store;
+		//return readRelation(relations, streams);
+	}
+
+	/**
+	 * Deserializes a relation with transactions stored in a delta map store.
+	 * @param relations The stream to read relation metadata from.
+	 * @param streams The streams to read relation contents from.
+	 * @return The model store with the deserialized data.
+	 * @param <T> The type of values to deserialize.
+	 * @throws IOException When the deserialization fails.
+	 */
+	private <T> DataRepresentationVersionMapStorePair<Tuple, T> readRelation(DataInputStream relations,
+																			 HashMap<Relation<?>, DataInputStream> streams,
+																			 Class<T> valueTypeClass) throws IOException {
+		@SuppressWarnings("unchecked")
+		SerializerStrategy<T> serializerStrategy = (SerializerStrategy<T>) serializerStrategyMap.get(valueTypeClass);
+
+		//Reads Relation name
+		int length = relations.readInt();
+		byte[] nameByte = new byte[length];
+		relations.readFully(nameByte);
+		String name = new String(nameByte, StandardCharsets.UTF_8);
+		System.out.println("\nReading Relation name: " + name);
+
+		//Reads Relation arity
+		int arity = relations.readInt();
+		System.out.println("Reading Relation arity: " + arity);
+
+		//Reads defaultValue
+		var defaultValue = serializerStrategy.readValue(relations);
+		System.out.println("Reading Relation defaultValue: " + defaultValue);
+
+		//Creates Relation
+		var relation = new Relation<T>(name, arity, valueTypeClass , defaultValue);
+		System.out.println("Relation created: " + relation.getName());
+
+		//Creates VersionedMapStoreDeltaImp
+		DataInputStream data = streams.get(relation);
+		VersionedMapStoreDeltaImpl<Tuple,T> mapStore = readDeltaStore(relation, data, serializerStrategy);
+
+		System.out.println("VersionedMapStoreDeltaImpl created.");
+		return new DataRepresentationVersionMapStorePair<>(relation, mapStore);
 	}
 
 	public <T> void writeDeltaStore(Relation<T> relation, VersionedMapStoreDeltaImpl<Tuple, T> mapStore, DataOutputStream data, SerializerStrategy<T> serializerStrategy) throws IOException {
-		//If the map store has at least one state, serializes the state(s)
+		//TODO If the map store has at least one state, serializes the state(s)
+		//TODO ilyenkor ki kell írni egy üres tranzakciót
 	 	if(mapStore.getState(0) != null){
 			for(int i = 0; i < mapStore.getStates().size(); i++){
 				MapTransaction<Tuple, T> mapTransaction = mapStore.getState(i);

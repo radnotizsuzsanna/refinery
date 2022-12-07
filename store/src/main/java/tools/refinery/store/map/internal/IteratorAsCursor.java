@@ -41,8 +41,7 @@ public class IteratorAsCursor<K, V> implements Cursor<K, V> {
 
 	@Override
 	public boolean move() {
-		//TODO ez miért nem fordítva?
-		terminated = iterator.hasNext();
+		//TODO ezt Zsuzsi irta
 		terminated = !iterator.hasNext();
 		if(terminated) {
 			this.key = null;
