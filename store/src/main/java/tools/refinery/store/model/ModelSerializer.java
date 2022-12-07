@@ -73,7 +73,6 @@ public class ModelSerializer {
 		//Writes out Relation ValueType
 		Class<T> valueTypeClass = relation.getValueType();
 		String valueTypeString = valueTypeClass.toString();
-		//TODO ez így kicsit csúnya, de a toString odatette a class -t az osztály elé, ami miatt a Class.forName() nem tudta visszaalakítani
 		valueTypeString = valueTypeString.replace("class ", "");
 		byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
 		relations.writeInt(valueTypeByte.length);
@@ -115,7 +114,7 @@ public class ModelSerializer {
 				Class<?> valueTypeClass = Class.forName(valueTypeString);
 				System.out.println("\nReading Relation valueType: " + valueTypeString);
 
-				//TODO ez igy nagyon csunya? :( A ? helyére nem tudom etenni a típust?
+				//TODO ez igy nagyon csunya? :( A "?" helyére nem tudom eltenni a típust?
 				DataRepresentationVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass);
 				//Creates ModelStore from Relation and VersionedMapStoreDeltaImpl
 				stores.put(pair.dataRepresentation(), pair.mapStore());
@@ -128,11 +127,10 @@ public class ModelSerializer {
 			throw new RuntimeException(e);
 		}
 
-		//TODO
 		ModelStore store = new ModelStoreImpl(stores);
 		relations.close();
 		return store;
-		//return readRelation(relations, streams);
+
 	}
 
 	/**
@@ -179,7 +177,8 @@ public class ModelSerializer {
 	public <T> void writeDeltaStore(Relation<T> relation, VersionedMapStoreDeltaImpl<Tuple, T> mapStore, DataOutputStream data, SerializerStrategy<T> serializerStrategy) throws IOException {
 		//TODO If the map store has at least one state, serializes the state(s)
 		//TODO ilyenkor ki kell írni egy üres tranzakciót
-	 	if(mapStore.getState(0) != null){
+		MapTransaction<Tuple, T> lastNotEmptyTransaction = null;
+		if(mapStore.getState(0) != null){
 			for(int i = 0; i < mapStore.getStates().size(); i++){
 				MapTransaction<Tuple, T> mapTransaction = mapStore.getState(i);
 				MapDelta<Tuple, T>[] deltasOfTransaction = mapTransaction.deltas();
@@ -191,6 +190,7 @@ public class ModelSerializer {
 				int deltasLength = 0;
 
 				if(mapTransaction.version() == i){
+					lastNotEmptyTransaction = mapTransaction;
 					if(mapTransaction.parent() == null) {
 						data.writeLong(-1);
 						System.out.println("\tWriting parent of transaction: -1");
@@ -202,8 +202,15 @@ public class ModelSerializer {
 					deltasLength = mapTransaction.deltas().length;
 				}
 				else{
-					data.writeLong(i-1);
-					System.out.println("\tWriting parent of transaction: " + (i-1));
+					if(lastNotEmptyTransaction == null){
+						data.writeLong(-1);
+						System.out.println("\tWriting parent of transaction: " + -1);
+					}
+					else{
+						data.writeLong(lastNotEmptyTransaction.version());
+						System.out.println("\tWriting parent of transaction: " + lastNotEmptyTransaction.version());
+						System.out.println("\tDebuggolashoz: Ures transaction parentje: " + mapTransaction.parent());
+					}
 				}
 
 				//Writes out the number of deltas
@@ -228,7 +235,20 @@ public class ModelSerializer {
 					serializerStrategy.writeValue(data, mapDelta.newValue());
 					System.out.println("\t\tWriting newValue:  " + mapDelta.newValue());
 				}
+				System.out.println("");
 			}
+		}
+		else{
+			//Writes out the version and the parent id of the mapTransaction
+			data.writeLong(0);
+			System.out.println("\tWriting version of transaction: " + 0);
+
+			data.writeLong(-1);
+			System.out.println("\tWriting parent of transaction: -1");
+
+			//Writes out the number of deltas
+			data.writeInt(0);
+			System.out.println("\tWriting number of deltas: " + 0);
 		}
 	}
 
@@ -277,6 +297,7 @@ public class ModelSerializer {
 						mapTransactionArray.put(version, new MapTransaction<Tuple, T>(deltas, version, parentTransaction));
 					}
 				}
+				System.out.println("");
 			}
 		}
 		catch(IOException e){

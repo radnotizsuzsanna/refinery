@@ -64,9 +64,7 @@ class ModelSerializerTest {
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		} catch (ClassNotFoundException e) {
+		catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -107,9 +105,7 @@ class ModelSerializerTest {
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		} catch (ClassNotFoundException e) {
+		catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -133,11 +129,18 @@ class ModelSerializerTest {
 
 		model.commit();
 		model.commit();
+		model.commit();
 
 		model.put(person, Tuple.of(0), false);
 		model.put(person, Tuple.of(1), false);
 
 
+		model.commit();
+		model.commit();
+
+		model.put(person, Tuple.of(0), true);
+
+		model.commit();
 		model.commit();
 
 		//Sets the serializer strategy for every type int the model
@@ -158,9 +161,7 @@ class ModelSerializerTest {
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		} catch (ClassNotFoundException e) {
+		catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -236,9 +237,7 @@ class ModelSerializerTest {
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		} catch (ClassNotFoundException e) {
+		catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
