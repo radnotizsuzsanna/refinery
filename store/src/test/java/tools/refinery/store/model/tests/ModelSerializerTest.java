@@ -166,6 +166,59 @@ class ModelSerializerTest {
 		}
 	}
 
+
+	/**
+	 * Tests if the ModelSerializer can serialize a model store with restore
+	 * @throws IOException When the connection of the piped streams fails.
+	 */
+	@Test
+	void serializerWithRestoreTest() throws IOException{
+		Relation<Boolean> person = new Relation<>("person", 1, Boolean.class,false);
+		Relation<Integer> age = new Relation<>("age", 1, Integer.class,0);
+
+		ModelStore store = new ModelStoreImpl(Set.of(person, age));
+		Model model = store.createModel();
+
+		model.put(person, Tuple.of(0), true);
+		model.put(person, Tuple.of(1), true);
+		model.put(age, Tuple.of(0), 21);
+		model.put(age, Tuple.of(1), 34);
+
+		var state0 = model.commit();
+
+		model.put(person, Tuple.of(0), false);
+		model.put(person, Tuple.of(1), false);
+
+		model.commit();
+		model.restore(state0);
+
+		model.put(person, Tuple.of(0), true);
+		model.commit();
+
+
+		//Sets the serializer strategy for every type int the model
+		ModelSerializer serializer = new ModelSerializer();
+		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer();
+		serializer.addStrategy(Boolean.class,strategyBoolean);
+		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer();
+		serializer.addStrategy(Integer.class,strategyInteger);
+
+		List< DataRepresentation<?,?>> dataRepresentationList = store.getDataRepresentations().stream().toList();
+		initializeStreamMapsWithPipedStreams(dataRepresentationList);
+		initializeRelationStreamsWithPipedStream();
+		try {
+			//Serializes the ModelStore
+			serializer.write(store, relationsOutputStream, streamMapOut);
+			//Deserializes the ModelStore
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			//Test if the ModelStore is the same after the serialization
+			compareStores(store,store2);
+		}
+		catch (IOException | ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	/**
 	 * Tests if the serializer can handle interrupted map store data while deserializing
 	 * @throws IOException When the connection of the piped streams fails.
