@@ -60,7 +60,7 @@ class ModelSerializerTest {
 			//Serializes the ModelStore
 			serializer.write(store, relationsOutputStream, streamMapOut);
 			//Deserializes the ModelStore
-			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn).getModelStore();
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
@@ -101,7 +101,7 @@ class ModelSerializerTest {
 			//Serializes the ModelStore
 			serializer.write(store, relationsOutputStream, streamMapOut);
 			//Deserializes the ModelStore
-			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn).getModelStore();
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
@@ -157,7 +157,7 @@ class ModelSerializerTest {
 			//Serializes the ModelStore
 			serializer.write(store, relationsOutputStream, streamMapOut);
 			//Deserializes the ModelStore
-			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn).getModelStore();
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
@@ -208,7 +208,7 @@ class ModelSerializerTest {
 			//Serializes the ModelStore
 			serializer.write(store, relationsOutputStream, streamMapOut);
 			//Deserializes the ModelStore
-			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn);
+			ModelStore store2 = serializer.read(relationsInputStream, streamMapIn).getModelStore();
 
 			Model model2 = store2.createModel(state2);
 
@@ -341,7 +341,6 @@ class ModelSerializerTest {
 
 		ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
 		relationsOutputStream = new DataOutputStream(byteArrayOutput);
-
 
 		try {
 			//Serializes the ModelStore

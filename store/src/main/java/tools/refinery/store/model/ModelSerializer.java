@@ -102,8 +102,9 @@ public class ModelSerializer {
 		writeDeltaStore(relation, versionedMapStore, streams.get(relation), serializerStrategy);
 	}
 
-	public ModelStore read(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException, ClassNotFoundException {
+	public ModelStoreWithError read(DataInputStream relations, HashMap<Relation<?>, DataInputStream> streams) throws IOException, ClassNotFoundException {
 		Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> stores = new HashMap<>();
+		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
 		try{
 			while(relations.available()!=0){
 				//Reads Relation valueType
@@ -115,60 +116,80 @@ public class ModelSerializer {
 				System.out.println("\nReading Relation valueType: " + valueTypeString);
 
 				//TODO ez igy nagyon csunya? :( A "?" helyére nem tudom eltenni a típust?
-				DataRepresentationVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass);
+				DataRepresentationVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass, modelStoreWithError);
+				if (pair == null) {
+					return new ModelStoreWithError(null, new Exception("Could not read a relation"),-1,null);
+					//TODO ha a relációt sem sikerült beolvasni,akkor mi legyen
+				}
 				//Creates ModelStore from Relation and VersionedMapStoreDeltaImpl
 				stores.put(pair.dataRepresentation(), pair.mapStore());
 			}
 		}
 		catch (IOException e){
-			if(e.getMessage() == null) throw new IOException("Incomplete Relation in file.");
+			if(e.getMessage() == null) throw new IOException("Incomplete Relation in file");
 			else throw  e;
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 
-		ModelStore store = new ModelStoreImpl(stores);
-		relations.close();
-		return store;
+		long lastVersion = 2;
+		Map<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> newStores = new HashMap<>();
+		for (Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : stores.entrySet()){
+			newStores.put(entry.getKey(), (VersionedMapStore<?, ?>) entry.getValue().createMap(lastVersion));
+		}
 
+		ModelStore store = new ModelStoreImpl(stores);
+		modelStoreWithError.modelStore = store; //TODO ne így
+		relations.close();
+		return modelStoreWithError;
 	}
 
 	/**
 	 * Deserializes a relation with transactions stored in a delta map store.
+	 *
 	 * @param relations The stream to read relation metadata from.
-	 * @param streams The streams to read relation contents from.
+	 * @param streams   The streams to read relation contents from.
+	 * @param <T>       The type of values to deserialize.
 	 * @return The model store with the deserialized data.
-	 * @param <T> The type of values to deserialize.
 	 * @throws IOException When the deserialization fails.
 	 */
-	private <T> DataRepresentationVersionMapStorePair<Tuple, T> readRelation(DataInputStream relations,
-																			 HashMap<Relation<?>, DataInputStream> streams,
-																			 Class<T> valueTypeClass) throws IOException {
+	private <T> DataRepresentationVersionMapStorePair readRelation(DataInputStream relations,
+																   HashMap<Relation<?>, DataInputStream> streams,
+																   Class<T> valueTypeClass, ModelStoreWithError modelStoreWithError) throws IOException {
 		@SuppressWarnings("unchecked")
 		SerializerStrategy<T> serializerStrategy = (SerializerStrategy<T>) serializerStrategyMap.get(valueTypeClass);
 
-		//Reads Relation name
-		int length = relations.readInt();
-		byte[] nameByte = new byte[length];
-		relations.readFully(nameByte);
-		String name = new String(nameByte, StandardCharsets.UTF_8);
-		System.out.println("\nReading Relation name: " + name);
+		String name = new String("");
+		int arity = 0;
+		T defaultValue = null;
 
-		//Reads Relation arity
-		int arity = relations.readInt();
-		System.out.println("Reading Relation arity: " + arity);
+		try {
+			//Reads Relation name
+			int length = relations.readInt();
+			byte[] nameByte = new byte[length];
+			relations.readFully(nameByte);
+			name = new String(nameByte, StandardCharsets.UTF_8);
+			System.out.println("\nReading Relation name: " + name);
 
-		//Reads defaultValue
-		var defaultValue = serializerStrategy.readValue(relations);
-		System.out.println("Reading Relation defaultValue: " + defaultValue);
+			//Reads Relation arity
+			arity = relations.readInt();
+			System.out.println("Reading Relation arity: " + arity);
+
+			//Reads defaultValue
+			defaultValue = serializerStrategy.readValue(relations);
+			System.out.println("Reading Relation defaultValue: " + defaultValue);
+		}catch (IOException exception){
+			return null;
+		}
 
 		//Creates Relation
-		var relation = new Relation<T>(name, arity, valueTypeClass , defaultValue);
+		var relation = new Relation<T>(name, arity, valueTypeClass, defaultValue);
 		System.out.println("Relation created: " + relation.getName());
 
 		//Creates VersionedMapStoreDeltaImp
 		DataInputStream data = streams.get(relation);
-		VersionedMapStoreDeltaImpl<Tuple,T> mapStore = readDeltaStore(relation, data, serializerStrategy);
+		var mapStore = readDeltaStore(relation, data, serializerStrategy, modelStoreWithError);
+		if (modelStoreWithError.exception == null) modelStoreWithError.setGuiltyRelation(relation);
 
 		System.out.println("VersionedMapStoreDeltaImpl created.");
 		return new DataRepresentationVersionMapStorePair<>(relation, mapStore);
@@ -252,11 +273,12 @@ public class ModelSerializer {
 		}
 	}
 
-	public <T> VersionedMapStoreDeltaImpl<Tuple,T> readDeltaStore(Relation<T> relation, DataInputStream data, SerializerStrategy<T> serializerStrategy) throws IOException {
+	public <T> VersionedMapStoreDeltaImpl<Tuple,T> readDeltaStore(Relation<T> relation, DataInputStream data, SerializerStrategy<T> serializerStrategy, ModelStoreWithError modelStoreWithError) throws IOException {
 		LongObjectHashMap<MapTransaction<Tuple, T>> mapTransactionArray = new LongObjectHashMap<>();
+		long version = 0;
 		try{
 			while(data.available()!=0){
-				long version = data.readLong();
+				version = data.readLong();
 				System.out.println("\tReading version of transaction: " + version);
 				long parent = data.readLong();
 				System.out.println("\tReading parent of transaction: " + parent);
@@ -301,11 +323,11 @@ public class ModelSerializer {
 			}
 		}
 		catch(IOException e){
-			//TODO ne exeptiont dobjunk, hanem tárjünk vissza és valahogy jelezzük, hogy meddig sikerült beolvasni
-			throw new IOException("Incomplete MapStore in file.");
+			modelStoreWithError.setException(new IOException("Incomplete MapStore in file"));
+			modelStoreWithError.setLastSuccessfulTransactionVersion(version);
+			return new VersionedMapStoreDeltaImpl<>(relation.getDefaultValue(), mapTransactionArray);
 		}
 
-		var defaultValue = relation.getDefaultValue();
-		return new VersionedMapStoreDeltaImpl<>(defaultValue, mapTransactionArray);
+		return new VersionedMapStoreDeltaImpl<>(relation.getDefaultValue(), mapTransactionArray);
 	}
 }
