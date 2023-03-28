@@ -24,7 +24,15 @@ public class ModelSerializerWithDolt {
 				if (dataRepresentation instanceof Relation<?> relation) {
 					VersionedMapStore<?, ?> mapStore = entry.getValue();
 					if (mapStore instanceof VersionedMapStoreDeltaImpl<?, ?> deltaStore) {
-						writeRelation(relation, deltaStore);
+
+						try {
+							writeRelation(relation, deltaStore);
+						}
+						catch (Exception e){
+							clearDatabase(relation);
+							writeRelation(relation,deltaStore);
+						}
+
 					} else {
 						throw new UnsupportedOperationException("Only delta stores are supported!");
 					}
@@ -35,6 +43,11 @@ public class ModelSerializerWithDolt {
 			}
 		}
 	}
+
+	public <T> void clearDatabase(Relation<T> relation) throws SQLException {
+		PreparedStatement ps = connection.prepareStatement("DROP TABLE "+relation.getName()+";");
+		ps.execute();
+	}
 	public void connectToDataBase(String name) throws ClassNotFoundException, SQLException {
 		//Create connection
 		String connectionUrl = "jdbc:mysql://localhost:3306/"+name+"?serverTimezone=UTC";
@@ -44,8 +57,42 @@ public class ModelSerializerWithDolt {
 		ps.execute();
 	}
 
-	private <T> void writeRelation(Relation<T> relation, VersionedMapStoreDeltaImpl<?, ?> versionedMapStore){
+	private <T> void writeRelation(Relation<T> relation, VersionedMapStoreDeltaImpl<?, ?> versionedMapStore) throws SQLException {
 		String name = relation.getName();
+		PreparedStatement ps = null;
+		String valueType = relation.getValueType().toString();
+		String[] array =  valueType.split("\\.");
+		valueType = array[array.length-1];
+
+		if(relation.getArity()==1){
+			if(valueType.equals("TruthValue")){
+				ps = connection.prepareStatement("CREATE TABLE "+name+"(" +
+					"key1 int not null, " +
+					"value1 TEXT not null, " +
+					"primary key (key1));"
+				);
+			}
+			else{
+				ps = connection.prepareStatement("CREATE TABLE "+name+"(" +
+					"key1 int not null, " +
+					"value1 "+valueType+" not null, " +
+					"primary key (key1));"
+				);
+			}
+
+		}
+		else if(relation.getArity()==2){
+			ps = connection.prepareStatement("CREATE TABLE "+name+"(" +
+				"key1 int not null, " +
+				"key2 int not null, " +
+				"value1 int not null, " +
+				"primary key (key1, key2));"
+			);
+		}
+		else{
+			ps = connection.prepareStatement("");
+		}
+		ps.execute();
 	}
 
 }
