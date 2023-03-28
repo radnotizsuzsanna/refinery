@@ -9,4 +9,5 @@ dependencies {
 	implementation "org.eclipse.emf:org.eclipse.emf.ecore.xmi:${ecoreXmiVersion}"
 	implementation 'org.eclipse.collections:eclipse-collections-api:11.0.0'
 	implementation 'org.eclipse.collections:eclipse-collections:11.0.0'
+	implementation group: 'com.mysql', name: 'mysql-connector-j', version: '8.0.32'
 }
