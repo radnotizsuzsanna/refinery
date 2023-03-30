@@ -86,7 +86,6 @@ public class ModelSerializerWithDolt {
 					"primary key (key1));"
 				);
 			}
-
 		}
 		else if(relation.getArity()==2 && valueType.equals("Boolean")){
 			ps = connection.prepareStatement("CREATE TABLE "+name+"(" +
@@ -103,7 +102,6 @@ public class ModelSerializerWithDolt {
 
 		doltAdd(name);
 		doltCommit("Table " + name + " added to database");
-
 
 		// Guaranteed to succeed by the precondition of this method.
 		@SuppressWarnings("unchecked")
@@ -187,7 +185,6 @@ public class ModelSerializerWithDolt {
 			System.out.println("\nCommit result: " + result);
 		}
 	}
-
 	private void doltReset() throws SQLException {
 		//TODO valtozoba kiszervezni
 		PreparedStatement ps = connection.prepareStatement("call dolt_reset('--hard', 'oe1jpm2pbqbb8nn09k95gigiqju64k44');");
