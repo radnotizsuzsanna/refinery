@@ -128,32 +128,65 @@ public class ModelSerializerWithDolt {
 
 					int arity = relation.getArity();
 					PreparedStatement ps = null;
-					if(arity == 1){
-						ps = connection.prepareStatement("insert into "+ relation.getName()+" values(?, ?);");
-						ps.setInt(1,tuple.get(0));
-						switch (valueType) {
-							case "TruthValue" -> {
-								TruthValue truthValue = (TruthValue) mapDelta.newValue();
-								ps.setString(2, truthValue.getName());
+					//If it is the first occurrence of the delta -> insert
+					if(mapDelta.oldValue() == null){
+						if(arity == 1){
+							ps = connection.prepareStatement("insert into "+ relation.getName()+" values(?, ?);");
+							ps.setInt(1,tuple.get(0));
+							switch (valueType) {
+								case "TruthValue" -> {
+									TruthValue truthValue = (TruthValue) mapDelta.newValue();
+									ps.setString(2, truthValue.getName());
+								}
+								case "Boolean" -> {
+									Boolean bool = (Boolean) mapDelta.newValue();
+									ps.setBoolean(2, bool);
+								}
+								case "Integer" -> {
+									Integer number = (Integer) mapDelta.newValue();
+									ps.setInt(2, number);
+								}
+								default -> throw new UnsupportedOperationException("Only TruthValue, Boolean and Integer types are supported!");
 							}
-							case "Boolean" -> {
-								Boolean bool = (Boolean) mapDelta.newValue();
-								ps.setBoolean(2, bool);
-							}
-							case "Integer" -> {
-								Integer number = (Integer) mapDelta.newValue();
-								ps.setInt(2, number);
-							}
-							default -> throw new UnsupportedOperationException("Only TruthValue, Boolean and Integer types are supported!");
-						}
 
-					}else if(arity == 2 && valueType.equals("Boolean")){
-						ps = connection.prepareStatement("insert into "+ relation.getName()+" values(?, ?, ?);");
-						ps.setInt(1,tuple.get(0));
-						ps.setInt(2,tuple.get(1));
-						Boolean bool = (Boolean) mapDelta.newValue();
-						ps.setBoolean(3, bool);
+						}else if(arity == 2 && valueType.equals("Boolean")){
+							ps = connection.prepareStatement("INSERT INTO "+ relation.getName()+" values(?, ?, ?);");
+							ps.setInt(1,tuple.get(0));
+							ps.setInt(2,tuple.get(1));
+							Boolean bool = (Boolean) mapDelta.newValue();
+							ps.setBoolean(3, bool);
+						}
 					}
+					//If the delta already exist in the database -> update
+					else{
+						if(arity == 1){
+							ps = connection.prepareStatement("UPDATE "+ relation.getName()+" SET value1 = ? WHERE key1 = ?;");
+							ps.setInt(2, tuple.get(0));
+							switch (valueType) {
+								case "TruthValue" -> {
+									TruthValue truthValue = (TruthValue) mapDelta.newValue();
+									ps.setString(1, truthValue.getName());
+								}
+								case "Boolean" -> {
+									Boolean bool = (Boolean) mapDelta.newValue();
+									ps.setBoolean(1, bool);
+								}
+								case "Integer" -> {
+									Integer number = (Integer) mapDelta.newValue();
+									ps.setInt(1, number);
+								}
+								default -> throw new UnsupportedOperationException("Only TruthValue, Boolean and Integer types are supported!");
+							}
+
+						}else if(arity == 2 && valueType.equals("Boolean")){
+							ps = connection.prepareStatement("UPDATE "+ relation.getName()+" SET value1 = ? WHERE key1 = ? AND key2 = ?;");
+							ps.setInt(2,tuple.get(0));
+							ps.setInt(3,tuple.get(1));
+							Boolean bool = (Boolean) mapDelta.newValue();
+							ps.setBoolean(1, bool);
+						}
+					}
+
 					ps.execute();
 				}
 				doltAdd(relation.getName());
