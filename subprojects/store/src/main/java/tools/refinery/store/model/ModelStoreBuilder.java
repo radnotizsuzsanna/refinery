@@ -3,10 +3,13 @@ package tools.refinery.store.model;
 import tools.refinery.store.adapter.ModelAdapterBuilder;
 import tools.refinery.store.adapter.ModelAdapterBuilderFactory;
 import tools.refinery.store.adapter.ModelAdapterType;
+import tools.refinery.store.map.VersionedMapStore;
 import tools.refinery.store.representation.AnySymbol;
 import tools.refinery.store.representation.Symbol;
+import tools.refinery.store.tuple.Tuple;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,4 +36,6 @@ public interface ModelStoreBuilder {
 	<T extends ModelAdapterBuilder> T getAdapter(ModelAdapterType<?, ?, T> adapterType);
 
 	ModelStore build();
+
+	ModelStore buildFromStores(HashMap<AnySymbol, VersionedMapStore<Tuple, ?>> stores);
 }

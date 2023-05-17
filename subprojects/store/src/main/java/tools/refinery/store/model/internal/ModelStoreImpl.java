@@ -15,9 +15,11 @@ import tools.refinery.store.tuple.Tuple;
 import java.util.*;
 
 public class ModelStoreImpl implements ModelStore {
-	private final Map<? extends AnySymbol, ? extends VersionedMapStore<Tuple, ?>> stores;
+	//TODO publikussá tettem
+	public final Map<? extends AnySymbol, ? extends VersionedMapStore<Tuple, ?>> stores;
 	private final AdapterList<ModelStoreAdapter> adapters;
 
+	//TODO jó lenne ha ezt tudnám használni beolvasáskor
 	ModelStoreImpl(Map<? extends AnySymbol, ? extends VersionedMapStore<Tuple, ?>> stores, int adapterCount) {
 		this.stores = stores;
 		adapters = new AdapterList<>(adapterCount);
@@ -25,6 +27,7 @@ public class ModelStoreImpl implements ModelStore {
 
 	@Override
 	public Collection<AnySymbol> getSymbols() {
+		//TODO ezt
 		return Collections.unmodifiableCollection(stores.keySet());
 	}
 

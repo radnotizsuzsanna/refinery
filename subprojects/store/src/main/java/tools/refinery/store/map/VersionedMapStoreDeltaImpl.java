@@ -1,8 +1,11 @@
 package tools.refinery.store.map;
 
-import java.util.*;
+import tools.refinery.store.map.internal.DeltaDiffCursor;
+import tools.refinery.store.map.internal.MapDelta;
+import tools.refinery.store.map.internal.MapTransaction;
+import tools.refinery.store.map.internal.VersionedMapDeltaImpl;
 
-import tools.refinery.store.map.internal.*;
+import java.util.*;
 
 public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V> {
 	// Configuration
@@ -12,13 +15,15 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 	protected final V defaultValue;
 
 	// Dynamic data
-	protected final Map<Long, MapTransaction<K, V>> states = new HashMap<>();
+	//TODO kiszedtem a finalt
+	protected /*final*/ Map<Long, MapTransaction<K, V>> states = new HashMap<>();
 	protected long nextID = 0;
 
 	public VersionedMapStoreDeltaImpl(boolean summarizeChanges, V defaultValue) {
 		this.summarizeChanges = summarizeChanges;
 		this.defaultValue = defaultValue;
 	}
+
 
 	@Override
 	public VersionedMap<K, V> createMap() {
@@ -45,9 +50,19 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 		}
 	}
 
-	private synchronized MapTransaction<K, V> getState(long state) {
+	//TODO publikussá tettem
+	public synchronized MapTransaction<K, V> getState(long state) {
 		return states.get(state);
 	}
+
+	//set states helyett
+	public Map<Long, MapTransaction<K, V>> internalExposeStates() {
+		return states;
+	}
+
+	/*public void setStates(Map<Long, MapTransaction<K, V>> s){
+		states = s;
+	}*/
 
 	public MapTransaction<K, V> getPath(long to, List<MapDelta<K, V>[]> forwardTransactions) {
 		final MapTransaction<K, V> target = getState(to);

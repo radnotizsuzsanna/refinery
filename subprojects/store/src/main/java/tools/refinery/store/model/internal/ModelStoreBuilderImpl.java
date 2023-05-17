@@ -5,10 +5,9 @@ import tools.refinery.store.adapter.ModelAdapterBuilder;
 import tools.refinery.store.adapter.ModelAdapterBuilderFactory;
 import tools.refinery.store.adapter.ModelAdapterType;
 import tools.refinery.store.map.VersionedMapStore;
-import tools.refinery.store.map.VersionedMapStoreImpl;
+import tools.refinery.store.map.VersionedMapStoreBuilder;
 import tools.refinery.store.model.ModelStore;
 import tools.refinery.store.model.ModelStoreBuilder;
-import tools.refinery.store.model.TupleHashProvider;
 import tools.refinery.store.representation.AnySymbol;
 import tools.refinery.store.representation.Symbol;
 import tools.refinery.store.tuple.Tuple;
@@ -92,13 +91,36 @@ public class ModelStoreBuilderImpl implements ModelStoreBuilder {
 		return modelStore;
 	}
 
+	@Override
+	public ModelStore buildFromStores(HashMap<AnySymbol, VersionedMapStore<Tuple, ?>> stores) {
+		for (var entry : equivalenceClasses.entrySet()) {
+			createStores(stores, entry.getKey(), entry.getValue());
+		}
+		var modelStore = new ModelStoreImpl(stores, adapters.size());
+		for (int i = adapters.size() - 1; i >= 0; i--) {
+			adapters.get(i).configure();
+		}
+		for (var entry : adapters.withAdapterTypes()) {
+			var adapter = entry.adapter().createStoreAdapter(modelStore);
+			modelStore.addAdapter(entry.adapterType(), adapter);
+		}
+		return modelStore;
+	}
+
 	private <T> void createStores(Map<AnySymbol, VersionedMapStore<Tuple, ?>> stores,
 								  SymbolEquivalenceClass<T> equivalenceClass, List<AnySymbol> symbols) {
 		int size = symbols.size();
-		var storeGroup = VersionedMapStoreImpl.createSharedVersionedMapStores(size, TupleHashProvider.INSTANCE,
-				equivalenceClass.defaultValue());
+		//TODO itt kerül versionedMapStoreImpl a store-ba, de nekünk versenMapStoreDeltaImpl kéne
+		//var storeGroup = VersionedMapStoreImpl.createSharedVersionedMapStores(size, TupleHashProvider.INSTANCE,
+		//		equivalenceClass.defaultValue());
 		for (int i = 0; i < size; i++) {
-			stores.put(symbols.get(i), storeGroup.get(i));
+			Object defaultValue = ((Symbol<T>)symbols.get(i)).defaultValue();
+			var store = VersionedMapStoreBuilder.<Tuple,Object>builder()
+					.setStrategy(VersionedMapStoreBuilder.StoreStrategy.DELTA)
+					.setDeltaStorageStrategy(VersionedMapStoreBuilder.DeltaStorageStrategy.LIST)
+					.setDefaultValue(defaultValue)
+					.buildOne();
+			stores.put(symbols.get(i), store);
 		}
 	}
 }
