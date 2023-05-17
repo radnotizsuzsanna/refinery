@@ -102,7 +102,7 @@ public class ModelSerializer {
 
 	public void read(ModelStoreWithError modelStoreWithError, DataInputStream relations, HashMap<String, DataInputStream> streams) throws IOException,
 			ClassNotFoundException {
-		long lastVersion = 2;
+
 		Map<AnySymbol, VersionedMapStore<?, ?>> stores = new HashMap<>();
 
 		var mapStores = (Map<AnySymbol, VersionedMapStore<Tuple, ?>>)((ModelStoreImpl )modelStoreWithError.modelStore).stores;
@@ -139,6 +139,7 @@ public class ModelSerializer {
 			throw new RuntimeException(e);
 		}
 
+		long lastVersion = modelStoreWithError.lastSuccessfulTransactionVersion;
 		for (Entry<AnySymbol, VersionedMapStore<Tuple, ?>> entry : mapStores.entrySet()){
 			VersionedMapStore<Tuple, ?> mapStore = mapStores.get(entry.getKey());
 
@@ -342,6 +343,7 @@ public class ModelSerializer {
 		}
 		catch(IOException e){
 			modelStoreWithError.setException(new IOException("Incomplete MapStore in file"));
+			//TODO ezt lekezelni
 			modelStoreWithError.setLastSuccessfulTransactionVersion(version);
 
 			//Todo a Tuple jó?
@@ -354,6 +356,7 @@ public class ModelSerializer {
 
 		//return new VersionedMapStoreDeltaImpl<>(relation.defaultValue(), mapTransactionArray);
 		//mapStore.setStates(mapTransactionArray);
+		modelStoreWithError.setLastSuccessfulTransactionVersion(version);
 		return mapStore;
 	}
 }
