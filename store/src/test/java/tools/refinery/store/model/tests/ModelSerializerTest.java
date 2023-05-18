@@ -423,6 +423,7 @@ class ModelSerializerTest {
 			compareIfStatesHaveTheSameModel(store, store2, item);
 		});
 	}
+
 	private void compareIfStatesHaveTheSameModel(ModelStore store, ModelStore store2, Long state){
 		//System.out.println("state: " + state);
 		//gets the cursors with getall, the puts them in HashMaps, then compare

@@ -1,201 +1,178 @@
 package tools.refinery.store.model;
 
-import tools.refinery.store.map.VersionedMapStore;
-import tools.refinery.store.map.VersionedMapStoreDeltaImpl;
-import tools.refinery.store.map.internal.MapDelta;
-import tools.refinery.store.map.internal.MapTransaction;
+import tools.refinery.store.map.Cursor;
 import tools.refinery.store.model.representation.DataRepresentation;
 import tools.refinery.store.model.representation.Relation;
 import tools.refinery.store.model.representation.TruthValue;
 
 import java.sql.*;
-import java.util.Map;
 
 public class ModelSerializerWithDolt {
 	Connection connection;
-	public void write(ModelStore store) throws SQLException, ClassNotFoundException {
-		connectToDataBase("Store");
-		doltReset();
-		if (store instanceof ModelStoreImpl impl) {
-			for (Map.Entry<DataRepresentation<?, ?>, VersionedMapStore<?, ?>> entry : impl.stores.entrySet()) {
-				DataRepresentation<?, ?> dataRepresentation = entry.getKey();
-				if (dataRepresentation instanceof Relation<?> relation) {
-					VersionedMapStore<?, ?> mapStore = entry.getValue();
-					if (mapStore instanceof VersionedMapStoreDeltaImpl<?, ?> deltaStore) {
 
-						try {
-							writeRelation(relation, deltaStore);
-						}
-						catch (Exception e){
-							clearDatabase(relation);
-							writeRelation(relation,deltaStore);
-						}
+	public void writeAllVersions(ModelStore store) throws SQLException {
+		connectToDataBase("modelstore");
+		var dataRepresentations = store.getDataRepresentations();
+		for (DataRepresentation<?, ?> item : dataRepresentations) {
+			writeRelation(item);
+		}
+		doltCommit("initial commit");
 
-					} else {
-						throw new UnsupportedOperationException("Only delta stores are supported!");
-					}
-				} else {
-					throw new UnsupportedOperationException(
-						"Only Relation representations are supported during serialization.");
-				}
-			}
+		var iterator = store.getStates().longIterator();
+		while (iterator.hasNext()) {
+			long version = iterator.next();
+			mainBranch();
+			newBranch(String.valueOf(version));
+			writeVersion(store, version);
 		}
 	}
 
-	public <T> void clearDatabase(Relation<T> relation) throws SQLException {
-		PreparedStatement ps = connection.prepareStatement("DROP TABLE "+relation.getName()+";");
-		ps.execute();
+	public void writeVersion(ModelStore store, long version) throws SQLException {
+		var model = store.createModel(version);
+		var dataRepresentations = store.getDataRepresentations();
+		boolean changed = false;
+		for (DataRepresentation<?, ?> item : dataRepresentations) {
+			if (!(item instanceof Relation<?> relation)) {
+				throw new IllegalArgumentException("Only Relation representations are supported during serialization.");
+			}
+			changed = changed || writeDelta(relation, model);
+		}
+		if (changed) {
+			doltCommit("Model state version " + version + " commited");
+		}
 	}
+
+	private <T> void writeRelation(DataRepresentation<?, ?> dataRepresentation) throws SQLException {
+		if (dataRepresentation instanceof Relation<?> relation) {
+			String name = relation.getName();
+			PreparedStatement ps;
+
+			var createTableBuilder = new StringBuilder();
+			createTableBuilder.append("CREATE TABLE ");
+			createTableBuilder.append(name);
+			createTableBuilder.append("(");
+			int arity = relation.getArity();
+			if (arity == 0) {
+				throw new IllegalArgumentException("Arity 0 symbols are not currently supported");
+			}
+			for (int i = 0; i < arity; i++) {
+				createTableBuilder.append("key");
+				createTableBuilder.append(i);
+				createTableBuilder.append(" int not null, ");
+			}
+			var valueType = relation.getValueType();
+			if (valueType.equals(Boolean.class)) {
+				if (!Boolean.FALSE.equals(relation.getDefaultValue())) {
+					throw new IllegalArgumentException("Default value for Boolean symbols must be false");
+				}
+			} else if (valueType.equals(Integer.class) || valueType.equals(TruthValue.class)) {
+				createTableBuilder.append("value int not null, ");
+			} else {
+				throw new IllegalArgumentException("Unsupported value type: " + valueType);
+			}
+			createTableBuilder.append("primary key (");
+			for (int i = 0; i < arity; i++) {
+				if (i != 0) {
+					createTableBuilder.append(", ");
+				}
+				createTableBuilder.append("key");
+				createTableBuilder.append(i);
+			}
+			createTableBuilder.append("));");
+
+			ps = connection.prepareStatement(createTableBuilder.toString());
+
+			ps.executeUpdate();
+
+			doltAdd(name);
+		} else {
+
+			throw new UnsupportedOperationException(
+				"Only Relation representations are supported during serialization.");
+		}
+	}
+
+	private <V> boolean writeDelta(Relation<V> relation, Model model) throws SQLException {
+		// Create prepared statement
+		Cursor<Tuple, V> cursor = model.getAll(relation);
+		if (!cursor.move()) {
+			return false;
+		}
+		do {
+			var key = cursor.getKey();
+			var value = cursor.getValue();
+			// Add key-value to batch insert
+			// https://docs.oracle.com/javase/8/docs/api/java/sql/PreparedStatement.html#addBatch--
+
+			PreparedStatement ps = null;
+
+			int arity = relation.getArity();
+			var valueType = relation.getValueType();
+			int columns = valueType.equals(Boolean.class) ? arity : arity + 1;
+			var insertBuilder = new StringBuilder();
+			insertBuilder.append("insert into ");
+			insertBuilder.append(relation.getName());
+			insertBuilder.append(" values(");
+			for (int i = 0; i < columns; i++) {
+				if (i != 0) {
+					insertBuilder.append(", ");
+				}
+				insertBuilder.append("?");
+			}
+			insertBuilder.append(");");
+			ps = connection.prepareStatement(insertBuilder.toString());
+
+			for (int i = 0; i < arity; i++) {
+				ps.setInt(i + 1, key.get(i));
+			}
+			if (valueType.equals(Integer.class)) {
+				ps.setInt(columns, (Integer) value);
+			} else if (valueType.equals(TruthValue.class)) {
+				ps.setInt(columns, ((TruthValue) value).ordinal());
+			} else if (!valueType.equals(Boolean.class)) {
+				throw new IllegalArgumentException("Unsupported value type: " + valueType);
+			}
+
+			ps.executeUpdate();
+		} while (cursor.move());
+
+		doltAdd(relation.getName());
+		return true;
+	}
+
+	public void newBranch(String branchName) throws SQLException {
+		PreparedStatement ps = connection.prepareStatement("call dolt_checkout('-b',?);");
+		ps.setString(1, branchName);
+		ResultSet rs = ps.executeQuery();
+
+		while (rs.next()) {
+			String result = rs.getString(1);
+			System.out.println("\nBranch result: " + result);
+		}
+	}
+
+	public void mainBranch() throws SQLException {
+		PreparedStatement ps = connection.prepareStatement("call dolt_checkout(?);");
+		ps.setString(1, "main");
+		ResultSet rs = ps.executeQuery();
+
+		while (rs.next()) {
+			String result = rs.getString(1);
+			System.out.println("\nBranch result: " + result);
+		}
+	}
+
 	public void connectToDataBase(String name) throws  SQLException {
 		//Create connection
-		String connectionUrl = "jdbc:mysql://localhost:3306/"+name+"?serverTimezone=UTC";
+		String connectionUrl = "jdbc:mysql://localhost:3306/?serverTimezone=UTC";
 		connection = DriverManager.getConnection(connectionUrl, "root", "");
 
+		PreparedStatement ps1 = connection.prepareStatement("create database "+name+";");
+		ps1.execute();
+
 		//use database
-		PreparedStatement ps = connection.prepareStatement("use "+name+";");
-		ps.execute();
-	}
-
-	private <T> void writeRelation(Relation<T> relation, VersionedMapStoreDeltaImpl<?, ?> rawVersionedMapStore) throws SQLException {
-		String name = relation.getName();
-		PreparedStatement ps = null;
-		String valueType = relation.getValueType().toString();
-		String[] array =  valueType.split("\\.");
-		valueType = array[array.length-1];
-
-		//create table
-		if(relation.getArity()==1){
-			if(valueType.equals("TruthValue")){
-				ps = connection.prepareStatement("CREATE TABLE "+name+"(" +
-					"key1 int not null, " +
-					"value1 TEXT not null, " +
-					"primary key (key1));"
-				);
-			}
-			else if(valueType.equals("Boolean")){
-				ps = connection.prepareStatement("CREATE TABLE "+name+"(" +
-					"key1 int not null, " +
-					"value1 Boolean not null, " +
-					"primary key (key1));"
-				);
-			}
-			else if(valueType.equals("Integer")){
-				ps = connection.prepareStatement("CREATE TABLE "+name+"(" +
-					"key1 int not null, " +
-					"value1 Int not null, " +
-					"primary key (key1));"
-				);
-			}
-		}
-		else if(relation.getArity()==2 && valueType.equals("Boolean")){
-			ps = connection.prepareStatement("CREATE TABLE "+name+"(" +
-				"key1 int not null, " +
-				"key2 int not null, " +
-				"value1 Boolean not null, " +
-				"primary key (key1, key2));"
-			);
-		}
-		else{
-			ps = connection.prepareStatement("");
-		}
-		ps.execute();
-
-		doltAdd(name);
-		doltCommit("Table " + name + " added to database");
-
-		// Guaranteed to succeed by the precondition of this method.
-		@SuppressWarnings("unchecked")
-		VersionedMapStoreDeltaImpl<Tuple, T> versionedMapStore = (VersionedMapStoreDeltaImpl<Tuple, T>) rawVersionedMapStore;
-		writeDeltaStore(relation, versionedMapStore);
-	}
-
-	private <T> void writeDeltaStore(Relation<T> relation, VersionedMapStoreDeltaImpl<Tuple,T> mapStore) throws SQLException {
-		String valueType = relation.getValueType().toString();
-		String[] array =  valueType.split("\\.");
-		valueType = array[array.length-1];
-
-		if(mapStore.getState(0) != null){
-			for(int i = 0; i < mapStore.getStates().size(); i++){
-				MapTransaction<Tuple, T> mapTransaction = mapStore.getState(i);
-				MapDelta<Tuple, T>[] deltasOfTransaction = mapTransaction.deltas();
-
-				int deltasLength = mapTransaction.deltas().length;
-
-				for (int j = 0; j < deltasLength; j++) {
-					MapDelta<Tuple, T> mapDelta = deltasOfTransaction[j];
-
-					Tuple tuple = mapDelta.key();
-
-					int arity = relation.getArity();
-					PreparedStatement ps = null;
-					//If it is the first occurrence of the delta -> insert
-					if(mapDelta.oldValue() == null){
-						if(arity == 1){
-							ps = connection.prepareStatement("insert into "+ relation.getName()+" values(?, ?);");
-							ps.setInt(1,tuple.get(0));
-							switch (valueType) {
-								case "TruthValue" -> {
-									TruthValue truthValue = (TruthValue) mapDelta.newValue();
-									ps.setString(2, truthValue.getName());
-								}
-								case "Boolean" -> {
-									Boolean bool = (Boolean) mapDelta.newValue();
-									ps.setBoolean(2, bool);
-								}
-								case "Integer" -> {
-									Integer number = (Integer) mapDelta.newValue();
-									ps.setInt(2, number);
-								}
-								default -> throw new UnsupportedOperationException("Only TruthValue, Boolean and Integer types are supported!");
-							}
-
-						}else if(arity == 2 && valueType.equals("Boolean")){
-							ps = connection.prepareStatement("INSERT INTO "+ relation.getName()+" values(?, ?, ?);");
-							ps.setInt(1,tuple.get(0));
-							ps.setInt(2,tuple.get(1));
-							Boolean bool = (Boolean) mapDelta.newValue();
-							ps.setBoolean(3, bool);
-						}
-					}
-					//If the delta already exist in the database -> update
-					else{
-						if(arity == 1){
-							ps = connection.prepareStatement("UPDATE "+ relation.getName()+" SET value1 = ? WHERE key1 = ?;");
-							ps.setInt(2, tuple.get(0));
-							switch (valueType) {
-								case "TruthValue" -> {
-									TruthValue truthValue = (TruthValue) mapDelta.newValue();
-									ps.setString(1, truthValue.getName());
-								}
-								case "Boolean" -> {
-									Boolean bool = (Boolean) mapDelta.newValue();
-									ps.setBoolean(1, bool);
-								}
-								case "Integer" -> {
-									Integer number = (Integer) mapDelta.newValue();
-									ps.setInt(1, number);
-								}
-								default -> throw new UnsupportedOperationException("Only TruthValue, Boolean and Integer types are supported!");
-							}
-
-						}else if(arity == 2 && valueType.equals("Boolean")){
-							ps = connection.prepareStatement("UPDATE "+ relation.getName()+" SET value1 = ? WHERE key1 = ? AND key2 = ?;");
-							ps.setInt(2,tuple.get(0));
-							ps.setInt(3,tuple.get(1));
-							Boolean bool = (Boolean) mapDelta.newValue();
-							ps.setBoolean(1, bool);
-						}
-					}
-
-					ps.execute();
-				}
-				doltAdd(relation.getName());
-				doltCommit("Added data to table " + relation.getName());
-			}
-		}
-		else{
-			throw new UnsupportedOperationException("Tupples only supported with 1 or 2 arity!");
-		}
+		PreparedStatement ps2 = connection.prepareStatement("use "+name+";");
+		ps2.execute();
 	}
 
 	private void doltAdd(String tableName) throws SQLException {
@@ -220,7 +197,7 @@ public class ModelSerializerWithDolt {
 	}
 	private void doltReset() throws SQLException {
 		//TODO valtozoba kiszervezni
-		PreparedStatement ps = connection.prepareStatement("call dolt_reset('--hard', 'oe1jpm2pbqbb8nn09k95gigiqju64k44');");
+		PreparedStatement ps = connection.prepareStatement("call dolt_reset('--hard', 'qq58hll09k847k8c5tj154cr4era949p');");
 		ps.execute();
 	}
 }
