@@ -258,14 +258,15 @@ class ModelSerializerTest {
 			assertTrue(get2);
 
 			model.restore(state1);
-			assertNull(personInterpretation.get(Tuple.of(2)));
-			//model2.restore(state1);
-			//assertFalse(model2.get(person, Tuple.of(2)));
+			get = personInterpretation.get(Tuple.of(2));
+			assertFalse(get);
 
-			//assertTrue(model.equals(model2));
+			model2.restore(state1);
+			get2 = personInterpretation2.get(Tuple.of(2));
+			assertFalse(get2);
 
 			//Test if the ModelStore is the same after the serialization
-			//compareStores(store,store2);
+			compareStores(store,store2);
 		}
 		catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);

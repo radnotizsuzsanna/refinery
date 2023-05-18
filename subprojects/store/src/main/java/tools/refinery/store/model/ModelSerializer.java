@@ -287,7 +287,7 @@ public class ModelSerializer {
 	}
 
 	public <T> VersionedMapStoreDeltaImpl<Tuple,T> readDeltaStore(Symbol<T> relation, DataInputStream data, SerializerStrategy<T> serializerStrategy, ModelStoreWithError modelStoreWithError) throws ClassNotFoundException {
-		HashMap<Long, MapTransaction<Tuple, T>> mapTransactionArray = new HashMap<>();
+		//HashMap<Long, MapTransaction<Tuple, T>> mapTransactionArray = new HashMap<>();
 
 		var mapStore =
 				(VersionedMapStoreDeltaImpl<Tuple,T>)	VersionedMapStoreBuilder.<Tuple, T>builder().setDefaultValue(relation.defaultValue()).buildOne();
@@ -344,7 +344,7 @@ public class ModelSerializer {
 		catch(IOException e){
 			modelStoreWithError.setException(new IOException("Incomplete MapStore in file"));
 			//TODO ezt lekezelni
-			modelStoreWithError.setLastSuccessfulTransactionVersion(version);
+			modelStoreWithError.setLastSuccessfulTransactionVersion(version-1);
 
 			//Todo a Tuple jó?
 			//var mapStore = VersionedMapStoreBuilder.<Tuple, T>builder().setDefaultValue(relation.defaultValue()).buildOne();
