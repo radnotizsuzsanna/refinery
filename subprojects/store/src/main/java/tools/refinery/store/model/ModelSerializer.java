@@ -348,7 +348,7 @@ public class ModelSerializer {
 
 			//Todo a Tuple jó?
 			//var mapStore = VersionedMapStoreBuilder.<Tuple, T>builder().setDefaultValue(relation.defaultValue()).buildOne();
-		//	mapStore.setStates(mapTransactionArray);
+			//mapStore.setStates(mapTransactionArray);
 			return mapStore;
 
 			//return new VersionedMapStoreDeltaImpl<>(relation.defaultValue(), mapTransactionArray);

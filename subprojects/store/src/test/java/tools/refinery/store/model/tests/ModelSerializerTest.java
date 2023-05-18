@@ -271,13 +271,14 @@ class ModelSerializerTest {
 			throw new RuntimeException(e);
 		}
 	}
+	//TODO ezt kiegészíteni
 
 	/**
 	 * Tests if the serializer can handle interrupted map store data while deserializing
 	 * @throws IOException When the connection of the piped streams fails.
 	 */
-/*	@Test
-	void serializationWithInterruptedMapStoreTest() throws IOException {
+	@Test
+	void serializationWithInterruptedMapStoreTest() throws IOException, ClassNotFoundException {
 		Symbol<Boolean> person = new Symbol<>("person", 1, Boolean.class,false);
 		Symbol<Integer> age = new Symbol<>("age", 1, Integer.class,0);
 
@@ -340,12 +341,15 @@ class ModelSerializerTest {
 			streamMapIn.put(dataRepresentation.name(), dataInputStream);
 		}
 
-		Exception exception = assertThrows(IOException.class, () -> {
-			serializer.read(relationsInputStream, streamMapIn);
-		});
 
-		assertEquals(exception.getMessage(), "Incomplete MapStore in file.");
-	}*/
+		ModelStore store2 = ModelStore.builder().symbols(person, age).build();
+		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
+		modelStoreWithError.setModelStore(store2);
+
+		serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
+
+		assertEquals(modelStoreWithError.getException().getMessage(), "Incomplete MapStore in file");
+	}
 
 	/**
 	 * Tests if the serializer can handle interrupted relation data while deserializing
