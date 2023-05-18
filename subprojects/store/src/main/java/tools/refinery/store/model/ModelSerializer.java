@@ -117,11 +117,9 @@ public class ModelSerializer {
 				Class<?> valueTypeClass = Class.forName(valueTypeString);
 				System.out.println("\nReading Relation valueType: " + valueTypeString);
 
-				//TODO ez igy nagyon csunya? :( A "?" helyére nem tudom eltenni a típust?
 				SymbolNameVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass, modelStoreWithError);
 				if (pair == null) {
-					modelStoreWithError = new ModelStoreWithError(null, new Exception("Could not read a relation"),-1, null);
-					//TODO ha a relációt sem sikerült beolvasni,akkor mi legyen
+					modelStoreWithError.setException(new Exception("Incomplete Relation in file"));
 				}
 				//Creates ModelStore from Relation and VersionedMapStoreDeltaImpl
 				//TODO ehelyett majd más kell (while)
@@ -132,37 +130,34 @@ public class ModelSerializer {
 				}
 			}
 		}
+		//TODO ez kell?
 		catch (IOException e){
-			if(e.getMessage() == null) throw new IOException("Incomplete Relation in file");
-			else throw  e;
+			modelStoreWithError.setException(new Exception("Incomplete Relation in file"));
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 
-		long lastVersion = modelStoreWithError.lastSuccessfulTransactionVersion;
-		for (Entry<AnySymbol, VersionedMapStore<Tuple, ?>> entry : mapStores.entrySet()){
-			VersionedMapStore<Tuple, ?> mapStore = mapStores.get(entry.getKey());
+		if(modelStoreWithError.getException()==null){
+			long lastVersion = modelStoreWithError.lastSuccessfulTransactionVersion;
+			for (Entry<AnySymbol, VersionedMapStore<Tuple, ?>> entry : mapStores.entrySet()){
+				VersionedMapStore<Tuple, ?> mapStore = mapStores.get(entry.getKey());
 
+				var store = stores.get(entry.getKey());
+				var states = store.getStates();
 
-			var store = stores.get(entry.getKey());
-			var states = store.getStates();
-
-			Map<Long, MapTransaction> statesHasMap = ((VersionedMapStoreDeltaImpl) mapStore).internalExposeStates();
-			for (Long value : states) {
-				if (value <= lastVersion) {
-					statesHasMap.put(value, ((VersionedMapStoreDeltaImpl) store).getState(value));
+				Map<Long, MapTransaction> statesHasMap = ((VersionedMapStoreDeltaImpl) mapStore).internalExposeStates();
+				for (Long value : states) {
+					if (value <= lastVersion) {
+						statesHasMap.put(value, ((VersionedMapStoreDeltaImpl) store).getState(value));
+					}
 				}
+
+				mapStores.put(entry.getKey(), mapStore);
 			}
-
-			mapStores.put(entry.getKey(), mapStore);
 		}
-
 		relations.close();
 	}
 
-	/*private <T> VersionedMapStore<Tuple, T>createMapStore(Symbol<T> symbol){
-		return VersionedMapStoreBuilder.<Tuple, T>builder().setDefaultValue(symbol.defaultValue()).buildOne();
-	}*/
 
 	/**
 	 * Deserializes a relation with transactions stored in a delta map store.
@@ -218,8 +213,6 @@ public class ModelSerializer {
 	}
 
 	public <T> void writeDeltaStore(Symbol<T> relation, VersionedMapStoreDeltaImpl<Tuple, T> mapStore, DataOutputStream data, SerializerStrategy<T> serializerStrategy) throws IOException {
-		//TODO If the map store has at least one state, serializes the state(s)
-		//TODO ilyenkor ki kell írni egy üres tranzakciót
 		if(mapStore.getState(0) != null){
 			for(int i = 0; i < mapStore.getStates().size(); i++){
 				MapTransaction<Tuple, T> mapTransaction = mapStore.getState(i);
@@ -288,7 +281,7 @@ public class ModelSerializer {
 
 	public <T> VersionedMapStoreDeltaImpl<Tuple,T> readDeltaStore(Symbol<T> relation, DataInputStream data, SerializerStrategy<T> serializerStrategy, ModelStoreWithError modelStoreWithError) throws ClassNotFoundException {
 		//HashMap<Long, MapTransaction<Tuple, T>> mapTransactionArray = new HashMap<>();
-
+		long lastSuccesfull = 0;
 		var mapStore =
 				(VersionedMapStoreDeltaImpl<Tuple,T>)	VersionedMapStoreBuilder.<Tuple, T>builder().setDefaultValue(relation.defaultValue()).buildOne();
 
@@ -338,24 +331,25 @@ public class ModelSerializer {
 						statesHasMap.put(version, new MapTransaction<Tuple, T>(deltas, version, parentTransaction));
 					}
 				}
+				lastSuccesfull = version;
 				System.out.println("");
 			}
 		}
 		catch(IOException e){
 			modelStoreWithError.setException(new IOException("Incomplete MapStore in file"));
-			//TODO ezt lekezelni
-			modelStoreWithError.setLastSuccessfulTransactionVersion(version-1);
+			//If it's the first store that is interrupted, than sets the lastSuccesfullTransaction to the last
+			// fully read version
+			if(modelStoreWithError.getLastSuccessfulTransactionVersion() == -1){
+				modelStoreWithError.setLastSuccessfulTransactionVersion(lastSuccesfull);
+			}
+			//If it's not the first interrupted store, the lastSuccesfullTransaction is the minimum of the two last
+			// version
+			else if(modelStoreWithError.getLastSuccessfulTransactionVersion() > lastSuccesfull){
+				modelStoreWithError.setLastSuccessfulTransactionVersion(lastSuccesfull);
+			}
 
-			//Todo a Tuple jó?
-			//var mapStore = VersionedMapStoreBuilder.<Tuple, T>builder().setDefaultValue(relation.defaultValue()).buildOne();
-			//mapStore.setStates(mapTransactionArray);
 			return mapStore;
-
-			//return new VersionedMapStoreDeltaImpl<>(relation.defaultValue(), mapTransactionArray);
 		}
-
-		//return new VersionedMapStoreDeltaImpl<>(relation.defaultValue(), mapTransactionArray);
-		//mapStore.setStates(mapTransactionArray);
 		modelStoreWithError.setLastSuccessfulTransactionVersion(version);
 		return mapStore;
 	}

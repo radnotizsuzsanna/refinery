@@ -7,7 +7,6 @@ public record Symbol<T>(String name, int arity, Class<T> valueType, T defaultVal
 		return Objects.equals(defaultValue, value);
 	}
 
-	//TODO ez miért így van?
 	@Override
 	public boolean equals(Object o) {
 		return this == o;

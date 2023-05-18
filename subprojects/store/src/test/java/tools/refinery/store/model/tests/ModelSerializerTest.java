@@ -199,7 +199,7 @@ class ModelSerializerTest {
 	 * @throws IOException When the connection of the piped streams fails.
 	 */
 	@Test
-	void serializerWithRestoreTest() throws IOException{
+	void serializerWithRestoreTest(){
 		Symbol<Boolean> person = new Symbol<>("person", 1, Boolean.class,false);
 		Symbol<Integer> age = new Symbol<>("age", 1, Integer.class,0);
 
@@ -233,8 +233,12 @@ class ModelSerializerTest {
 		serializer.addStrategy(Integer.class,strategyInteger);
 
 		List< AnySymbol> dataRepresentationList = store.getSymbols().stream().toList();
-		initializeStreamMapsWithPipedStreams(dataRepresentationList);
-		initializeRelationStreamsWithPipedStream();
+		try {
+			initializeStreamMapsWithPipedStreams(dataRepresentationList);
+			initializeRelationStreamsWithPipedStream();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 
 		ModelStore store2 = ModelStore.builder().symbols(person, age).build();
 		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
@@ -248,31 +252,29 @@ class ModelSerializerTest {
 
 			Model model2 = store2.createModelForState(state2);
 
-
+			//Test if the restore delete the new state
 			var get = personInterpretation.get(Tuple.of(2));
 			assertTrue(get);
-
-			var personInterpretation2 = model2.getInterpretation(person);
-
-			var get2 = personInterpretation2.get(Tuple.of(2));
-			assertTrue(get2);
 
 			model.restore(state1);
 			get = personInterpretation.get(Tuple.of(2));
 			assertFalse(get);
 
+			var personInterpretation2 = model2.getInterpretation(person);
+			var get2 = personInterpretation2.get(Tuple.of(2));
+			assertTrue(get2);
+
 			model2.restore(state1);
 			get2 = personInterpretation2.get(Tuple.of(2));
 			assertFalse(get2);
 
-			//Test if the ModelStore is the same after the serialization
+			//Test if the ModelStore is the same after the serialization and restore
 			compareStores(store,store2);
 		}
 		catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
-	//TODO ezt kiegészíteni
 
 	/**
 	 * Tests if the serializer can handle interrupted map store data while deserializing
@@ -337,7 +339,7 @@ class ModelSerializerTest {
 			var byteArrayOutput = byteArrayOutputMap.get(dataRepresentation);
 			byte[] byteArray = byteArrayOutput.toByteArray();
 			//Creates the  ByteArrayInputStream with only 10 bytes of the byteArray so the mapStore's data will be interrupted
-			ByteArrayInputStream byteArrayInput = new ByteArrayInputStream(byteArray, 0, 10);
+			ByteArrayInputStream byteArrayInput = new ByteArrayInputStream(byteArray, 0, 50);
 			DataInputStream dataInputStream = new DataInputStream(byteArrayInput);
 			streamMapIn.put(dataRepresentation.name(), dataInputStream);
 		}
@@ -350,6 +352,7 @@ class ModelSerializerTest {
 		serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
 
 		assertEquals(modelStoreWithError.getException().getMessage(), "Incomplete MapStore in file");
+		assertEquals(modelStoreWithError.getLastSuccessfulTransactionVersion(), 0);
 	}
 
 	/**
@@ -357,7 +360,7 @@ class ModelSerializerTest {
 	 * @throws IOException When the connection of the piped streams fails.
 	 */
 	@Test
-	void serializationWithInterruptedRelationTest() throws IOException {
+	void serializationWithInterruptedRelationTest() throws IOException, ClassNotFoundException {
 		Symbol<Boolean> person = new Symbol<>("person", 1, Boolean.class,false);
 		Symbol<Integer> age = new Symbol<>("age", 1, Integer.class,0);
 
@@ -410,12 +413,9 @@ class ModelSerializerTest {
 		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
 		modelStoreWithError.setModelStore(store2);
 
-		Exception exception = assertThrows(IOException.class, () -> {
-			serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
-		});
 
-		assertEquals(exception.getMessage(), "Incomplete Relation in file");
-
+		serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
+		assertEquals(modelStoreWithError.getException().getMessage(), "Incomplete Relation in file");
 	}
 
 	/**
@@ -487,8 +487,6 @@ class ModelSerializerTest {
 		HashMap<Object, Object> cursorMap1 = new HashMap<>();
 		HashMap<Object, Object> cursorMap2 = new HashMap<>();
 		for (AnySymbol item : dataRepresentations) {
-			//System.out.println(item.getName());
-
 			var interpretation = model.getInterpretation((Symbol<? extends Object>) item);
 			var cursor1 = interpretation.getAll();
 			var interpretation2 = model2.getInterpretation((Symbol<? extends Object>) item);
@@ -499,7 +497,6 @@ class ModelSerializerTest {
 				cursorMap1.put(key1, value1);
 				var key2 = cursor2.getKey();
 				var value2 = cursor2.getValue();
-				//System.out.println("key1: " + key1 + " key2: " + key2 + " value1: " + value1 + " value2: " + value2);
 				cursorMap2.put(key2, value2);
 			} while (cursor1.move() && cursor2.move());
 		}

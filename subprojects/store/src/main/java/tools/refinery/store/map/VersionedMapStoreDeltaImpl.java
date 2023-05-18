@@ -15,8 +15,7 @@ public class VersionedMapStoreDeltaImpl<K, V> implements VersionedMapStore<K, V>
 	protected final V defaultValue;
 
 	// Dynamic data
-	//TODO kiszedtem a finalt
-	protected /*final*/ Map<Long, MapTransaction<K, V>> states = new HashMap<>();
+	protected final Map<Long, MapTransaction<K, V>> states = new HashMap<>();
 	protected long nextID = 0;
 
 	public VersionedMapStoreDeltaImpl(boolean summarizeChanges, V defaultValue) {
