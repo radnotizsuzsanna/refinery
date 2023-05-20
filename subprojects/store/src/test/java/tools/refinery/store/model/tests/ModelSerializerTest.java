@@ -59,7 +59,6 @@ class ModelSerializerTest {
 		SerializerStrategy<TruthValue> strategyTruthValue = new TupleTruthValueSerializer();
 		serializer.addStrategy(TruthValue.class, strategyTruthValue);
 
-	//	List<AnySymbol> dataRepresentationList = (List<AnySymbol>) store.getSymbols();
 		List< AnySymbol> dataRepresentationList = store.getSymbols().stream().toList();
 		initializeStreamMapsWithPipedStreams(dataRepresentationList);
 		initializeRelationStreamsWithPipedStream();
@@ -72,7 +71,6 @@ class ModelSerializerTest {
 			//Serializes the ModelStore
 			serializer.write(store, relationsOutputStream, streamMapOut);
 			//Deserializes the ModelStore
-			//ModelStore store2 = serializer.read(relationsInputStream, streamMapIn).getModelStore();
 			serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
@@ -156,7 +154,6 @@ class ModelSerializerTest {
 		personInterpretation.put(Tuple.of(0), false);
 		personInterpretation.put(Tuple.of(1), false);
 
-
 		model.commit();
 		model.commit();
 
@@ -196,7 +193,6 @@ class ModelSerializerTest {
 
 	/**
 	 * Tests if the ModelSerializer can serialize a model store with restore
-	 * @throws IOException When the connection of the piped streams fails.
 	 */
 	@Test
 	void serializerWithRestoreTest(){
@@ -470,7 +466,7 @@ class ModelSerializerTest {
 		assertEquals(dataRepresentationHashMap.size(), dataRepresentationHashMap2.size());
 		assertEquals(dataRepresentationHashMap, dataRepresentationHashMap2);
 
-		//The two stores have the same amount of data reprezentations, and they contain the same name-valuetype pairs
+		//The two stores have the same amount of data representations, and they contain the same name-value type pairs
 		assertEquals(store.getStates(), store2.getStates());
 
 		//The two stores have the same states
@@ -479,17 +475,16 @@ class ModelSerializerTest {
 		});
 	}
 	private void compareIfStatesHaveTheSameModel(ModelStore store, ModelStore store2, Long state){
-		//System.out.println("state: " + state);
-		//gets the cursors with getall, the puts them in HashMaps, then compare
+		//gets the cursors with get all, the puts them in HashMaps, then compare
 		var dataRepresentations = store.getSymbols();
 		Model model = store.createModelForState(state);
 		Model model2 = store2.createModelForState(state);
 		HashMap<Object, Object> cursorMap1 = new HashMap<>();
 		HashMap<Object, Object> cursorMap2 = new HashMap<>();
 		for (AnySymbol item : dataRepresentations) {
-			var interpretation = model.getInterpretation((Symbol<? extends Object>) item);
+			var interpretation = model.getInterpretation((Symbol<?>) item);
 			var cursor1 = interpretation.getAll();
-			var interpretation2 = model2.getInterpretation((Symbol<? extends Object>) item);
+			var interpretation2 = model2.getInterpretation((Symbol<?>) item);
 			var cursor2 = interpretation2.getAll();
 			do {
 				var key1 = cursor1.getKey();

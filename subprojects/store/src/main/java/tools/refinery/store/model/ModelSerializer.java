@@ -105,6 +105,7 @@ public class ModelSerializer {
 
 		Map<AnySymbol, VersionedMapStore<?, ?>> stores = new HashMap<>();
 
+		@SuppressWarnings("unchecked")
 		var mapStores = (Map<AnySymbol, VersionedMapStore<Tuple, ?>>)((ModelStoreImpl )modelStoreWithError.modelStore).stores;
 
 		try{
@@ -123,13 +124,14 @@ public class ModelSerializer {
 				}
 
 				for (Entry<AnySymbol, VersionedMapStore<Tuple, ?>> entry : mapStores.entrySet()){
+					assert pair != null;
 					if(entry.getKey().name().equals(pair.symbol().name())){
 						if(pair.symbol().arity() != entry.getKey().arity()){
 							modelStoreWithError.setException(new Exception("The arity read from the file and the " +
 									"arity of the store's symbol are not the same. "));
 							throw new RuntimeException();
 						}
-						if(pair.symbol().defaultValue() != ((Symbol) entry.getKey()).defaultValue()){
+						if(pair.symbol().defaultValue() != ((Symbol<?>) entry.getKey()).defaultValue()){
 							modelStoreWithError.setException(new Exception("The default value read from the file and " +
 									"the default value of the store's symbol are not the same. "));
 							throw new RuntimeException();
@@ -145,6 +147,7 @@ public class ModelSerializer {
 			throw new RuntimeException(e);
 		}
 
+		//If there was no problem with reading the relation, puts the states into the mapStore
 		if(modelStoreWithError.getException()==null){
 			long lastVersion = modelStoreWithError.lastSuccessfulTransactionVersion;
 			for (Entry<AnySymbol, VersionedMapStore<Tuple, ?>> entry : mapStores.entrySet()){
@@ -153,7 +156,8 @@ public class ModelSerializer {
 				var store = stores.get(entry.getKey());
 				var states = store.getStates();
 
-				Map<Long, MapTransaction> statesHasMap = ((VersionedMapStoreDeltaImpl) mapStore).internalExposeStates();
+				@SuppressWarnings("unchecked")
+				var statesHasMap = ((VersionedMapStoreDeltaImpl<Tuple, ?>) mapStore).internalExposeStates();
 				for (Long value : states) {
 					if (value <= lastVersion) {
 						statesHasMap.put(value, ((VersionedMapStoreDeltaImpl) store).getState(value));
@@ -166,17 +170,7 @@ public class ModelSerializer {
 		relations.close();
 	}
 
-
-	/**
-	 * Deserializes a relation with transactions stored in a delta map store.
-	 *
-	 * @param relations The stream to read relation metadata from.
-	 * @param streams   The streams to read relation contents from.
-	 * @param <T>       The type of values to deserialize.
-	 * @return The model store with the deserialized data.
-	 * @throws IOException When the deserialization fails.
-	 */
-	private <T> SymbolVersionMapStorePair readRelation(DataInputStream relations,
+	private <T> SymbolVersionMapStorePair<Tuple, T> readRelation(DataInputStream relations,
 																   HashMap<String, DataInputStream> streams,
 																   Class<T> valueTypeClass, ModelStoreWithError modelStoreWithError) throws IOException, ClassNotFoundException {
 		@SuppressWarnings("unchecked")
@@ -269,7 +263,7 @@ public class ModelSerializer {
 					serializerStrategy.writeValue(data, mapDelta.newValue());
 					System.out.println("\t\tWriting newValue:  " + mapDelta.newValue());
 				}
-				System.out.println("");
+				System.out.println();
 			}
 		}
 		else{
@@ -286,13 +280,13 @@ public class ModelSerializer {
 		}
 	}
 
-	public <T> VersionedMapStoreDeltaImpl<Tuple,T> readDeltaStore(Symbol<T> relation, DataInputStream data, SerializerStrategy<T> serializerStrategy, ModelStoreWithError modelStoreWithError) throws ClassNotFoundException {
+	public <T> VersionedMapStoreDeltaImpl<Tuple,T> readDeltaStore(Symbol<T> relation, DataInputStream data, SerializerStrategy<T> serializerStrategy, ModelStoreWithError modelStoreWithError) {
 		//HashMap<Long, MapTransaction<Tuple, T>> mapTransactionArray = new HashMap<>();
-		long lastSuccesfull = 0;
+		long lastSuccessful = 0;
 		var mapStore =
 				(VersionedMapStoreDeltaImpl<Tuple,T>)	VersionedMapStoreBuilder.<Tuple, T>builder().setDefaultValue(relation.defaultValue()).buildOne();
 
-		Map statesHasMap = ((VersionedMapStoreDeltaImpl) mapStore).internalExposeStates();
+		Map<Long, MapTransaction<Tuple, T>> statesHasMap = mapStore.internalExposeStates();
 
 		long version = 0;
 		try{
@@ -305,7 +299,7 @@ public class ModelSerializer {
 				System.out.println("\tReading number of deltas: " + deltasLength);
 
 				if(deltasLength == 0){
-					MapTransaction<Tuple, T> parentTransaction = (MapTransaction<Tuple, T>) statesHasMap.get(parent);
+					MapTransaction<Tuple, T> parentTransaction = statesHasMap.get(parent);
 					statesHasMap.put(version, parentTransaction);
 
 				}
@@ -333,26 +327,25 @@ public class ModelSerializer {
 						statesHasMap.put(version, new MapTransaction<Tuple, T>(deltas, version, null));
 					}
 					else{
-						MapTransaction<Tuple, T> parentTransaction = (MapTransaction<Tuple, T>) statesHasMap.get(parent);
+						MapTransaction<Tuple, T> parentTransaction = statesHasMap.get(parent);
 						//noinspection unchecked
 						statesHasMap.put(version, new MapTransaction<Tuple, T>(deltas, version, parentTransaction));
 					}
 				}
-				lastSuccesfull = version;
-				System.out.println("");
+				lastSuccessful = version;
+				System.out.println();
 			}
 		}
 		catch(IOException e){
 			modelStoreWithError.setException(new IOException("Incomplete MapStore in file"));
-			//If it's the first store that is interrupted, than sets the lastSuccesfullTransaction to the last
+			//If it's the first store that is interrupted, then sets the lastSuccessfulTransaction to the last
 			// fully read version
 			if(modelStoreWithError.getLastSuccessfulTransactionVersion() == -1){
-				modelStoreWithError.setLastSuccessfulTransactionVersion(lastSuccesfull);
+				modelStoreWithError.setLastSuccessfulTransactionVersion(lastSuccessful);
 			}
-			//If it's not the first interrupted store, the lastSuccesfullTransaction is the minimum of the two last
-			// version
-			else if(modelStoreWithError.getLastSuccessfulTransactionVersion() > lastSuccesfull){
-				modelStoreWithError.setLastSuccessfulTransactionVersion(lastSuccesfull);
+			//If it's not the first interrupted store, the lastSuccessfulTransaction is the minimum of the two last
+			else if(modelStoreWithError.getLastSuccessfulTransactionVersion() > lastSuccessful){
+				modelStoreWithError.setLastSuccessfulTransactionVersion(lastSuccessful);
 			}
 
 			return mapStore;
