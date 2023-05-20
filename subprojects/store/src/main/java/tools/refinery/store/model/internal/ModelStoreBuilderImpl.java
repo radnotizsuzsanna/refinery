@@ -110,7 +110,6 @@ public class ModelStoreBuilderImpl implements ModelStoreBuilder {
 	private <T> void createStores(Map<AnySymbol, VersionedMapStore<Tuple, ?>> stores,
 								  SymbolEquivalenceClass<T> equivalenceClass, List<AnySymbol> symbols) {
 		int size = symbols.size();
-		//TODO itt kerül versionedMapStoreImpl a store-ba, de nekünk versenMapStoreDeltaImpl kéne
 		//var storeGroup = VersionedMapStoreImpl.createSharedVersionedMapStores(size, TupleHashProvider.INSTANCE,
 		//		equivalenceClass.defaultValue());
 		for (int i = 0; i < size; i++) {

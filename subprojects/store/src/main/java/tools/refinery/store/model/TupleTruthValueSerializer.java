@@ -11,7 +11,6 @@ import static tools.refinery.store.representation.TruthValue.*;
 public class TupleTruthValueSerializer implements SerializerStrategy<TruthValue> {
 	@Override
 	public void writeValue(DataOutputStream stream, TruthValue value) throws IOException {
-		//TODO itt is switch legyen
 		int ordinal;
 		switch (value){
 		case TRUE -> ordinal = 0;

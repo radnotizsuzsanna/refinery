@@ -42,7 +42,6 @@ public class ModelImpl implements Model {
 		return state;
 	}
 
-	//TODO itt nem találja meg az interpretation-t, pedig ott van
 	@Override
 	public <T> Interpretation<T> getInterpretation(Symbol<T> symbol) {
 		var interpretation = interpretations.get(symbol);

@@ -38,6 +38,6 @@ public final class FuzzTestCollections {
 					.setDeltaStorageStrategy(VersionedMapStoreBuilder.DeltaStorageStrategy.SET),
 			VersionedMapStoreBuilder.<Integer,String>builder()
 					.setStrategy(VersionedMapStoreBuilder.StoreStrategy.DELTA)
-					.setDeltaStorageStrategy(VersionedMapStoreBuilder.DeltaStorageStrategy.LIST) //TODO ezt használjam
+					.setDeltaStorageStrategy(VersionedMapStoreBuilder.DeltaStorageStrategy.LIST)
 	};
 }

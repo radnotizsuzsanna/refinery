@@ -117,20 +117,28 @@ public class ModelSerializer {
 				Class<?> valueTypeClass = Class.forName(valueTypeString);
 				System.out.println("\nReading Relation valueType: " + valueTypeString);
 
-				SymbolNameVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass, modelStoreWithError);
+				SymbolVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass, modelStoreWithError);
 				if (pair == null) {
 					modelStoreWithError.setException(new Exception("Incomplete Relation in file"));
 				}
-				//Creates ModelStore from Relation and VersionedMapStoreDeltaImpl
-				//TODO ehelyett majd más kell (while)
+
 				for (Entry<AnySymbol, VersionedMapStore<Tuple, ?>> entry : mapStores.entrySet()){
-					if(entry.getKey().name().equals(pair.symbolName())){
+					if(entry.getKey().name().equals(pair.symbol().name())){
+						if(pair.symbol().arity() != entry.getKey().arity()){
+							modelStoreWithError.setException(new Exception("The arity read from the file and the " +
+									"arity of the store's symbol are not the same. "));
+							throw new RuntimeException();
+						}
+						if(pair.symbol().defaultValue() != ((Symbol) entry.getKey()).defaultValue()){
+							modelStoreWithError.setException(new Exception("The default value read from the file and " +
+									"the default value of the store's symbol are not the same. "));
+							throw new RuntimeException();
+						}
 						stores.put(entry.getKey(), pair.mapStore());
 					}
 				}
 			}
 		}
-		//TODO ez kell?
 		catch (IOException e){
 			modelStoreWithError.setException(new Exception("Incomplete Relation in file"));
 		} catch (ClassNotFoundException e) {
@@ -168,7 +176,7 @@ public class ModelSerializer {
 	 * @return The model store with the deserialized data.
 	 * @throws IOException When the deserialization fails.
 	 */
-	private <T> SymbolNameVersionMapStorePair readRelation(DataInputStream relations,
+	private <T> SymbolVersionMapStorePair readRelation(DataInputStream relations,
 																   HashMap<String, DataInputStream> streams,
 																   Class<T> valueTypeClass, ModelStoreWithError modelStoreWithError) throws IOException, ClassNotFoundException {
 		@SuppressWarnings("unchecked")
@@ -198,7 +206,6 @@ public class ModelSerializer {
 		}
 
 		//Creates Relation
-		//TODO ez nem kell
 		var relation = new Symbol<>(name, arity, valueTypeClass, defaultValue);
 		System.out.println("Relation created: " + relation.name());
 
@@ -209,7 +216,7 @@ public class ModelSerializer {
 		if (modelStoreWithError.exception == null) modelStoreWithError.setGuiltyRelation(relation);
 
 		System.out.println("VersionedMapStoreDeltaImpl created.");
-		return new SymbolNameVersionMapStorePair<>(relation.name(), mapStore);
+		return new SymbolVersionMapStorePair<>(relation, mapStore);
 	}
 
 	public <T> void writeDeltaStore(Symbol<T> relation, VersionedMapStoreDeltaImpl<Tuple, T> mapStore, DataOutputStream data, SerializerStrategy<T> serializerStrategy) throws IOException {
