@@ -258,11 +258,24 @@ public class ModelSerializer {
 					}
 
 					//Writes out new and old value
-					if (mapDelta.oldValue() == null) serializerStrategy.writeValue(data, relation.defaultValue());
-					else serializerStrategy.writeValue(data, mapDelta.oldValue());
+					if (mapDelta.oldValue() == null) {
+						data.writeBoolean(true);
+						//serializerStrategy.writeValue(data, relation.defaultValue());
+					}
+					else {
+						data.writeBoolean(false);
+						serializerStrategy.writeValue(data, mapDelta.oldValue());
+					}
 					//logger.info("\t\tWriting oldValue:  " + mapDelta.oldValue());
 
-					serializerStrategy.writeValue(data, mapDelta.newValue());
+					if(mapDelta.newValue() == null){
+						data.writeBoolean(true);
+					}
+					else{
+						data.writeBoolean(false);
+						serializerStrategy.writeValue(data, mapDelta.newValue());
+					}
+
 					//logger.info("\t\tWriting newValue:  " + mapDelta.newValue());
 				}
 			}
@@ -316,10 +329,21 @@ public class ModelSerializer {
 						//logger.info("\t\tReading tuple: " + tuple);
 
 						//Reads the old and new value
-						var oldValue = serializerStrategy.readValue(data);
+						T oldValue = null;
+						Boolean nullValue = data.readBoolean();
+						if(!nullValue){
+							oldValue = serializerStrategy.readValue(data);
+						}
+
 						//logger.info("\t\tReading oldValue: " + oldValue);
 
-						var newValue = serializerStrategy.readValue(data);
+						T newValue = null;
+						nullValue = data.readBoolean();
+
+						if(!nullValue){
+							newValue = serializerStrategy.readValue(data);
+						}
+
 						//logger.info("\t\tReading newValue: " + newValue);
 						deltas[j] = new MapDelta<>(tuple, oldValue, newValue);
 					}
