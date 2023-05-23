@@ -23,6 +23,41 @@ public class MapTestEnvironment<K, V> {
 		return values;
 	}
 
+	//TODO én írtam:
+	public static Integer[] prepareIntegerValues(int maxValue, boolean nullDefault) {
+		Integer[] values = new Integer[maxValue];
+		if (nullDefault) {
+			values[0] = null;
+		} else {
+			values[0] = 0;
+		}
+
+		for (int i = 1; i < values.length; i++) {
+			values[i] = i;
+		}
+		return values;
+	}
+
+	//TODO én írtam:
+	public static Boolean[] prepareBooleanValues(int maxValue, boolean nullDefault) {
+		Boolean[] values = new Boolean[maxValue];
+		if (nullDefault) {
+			values[0] = null;
+		} else {
+			values[0] = false;
+		}
+
+		for (int i = 1; i < values.length; i++) {
+			if(i%3==0){
+				values[i] = false;
+			}
+			else{
+				values[i] = true;
+			}
+		}
+		return values;
+	}
+
 	public static ContinousHashProvider<Integer> prepareHashProvider(final boolean evil) {
 		// Use maxPrime = 2147483629
 

@@ -156,8 +156,8 @@ public class ModelSerializer {
 				var store = stores.get(entry.getKey());
 				var states = store.getStates();
 
-				@SuppressWarnings("unchecked")
-				var statesHasMap = ((VersionedMapStoreDeltaImpl<Tuple, ?>) mapStore).internalExposeStates();
+				//@SuppressWarnings("unchecked")
+				var statesHasMap = ((VersionedMapStoreDeltaImpl) mapStore).internalExposeStates();
 				for (Long value : states) {
 					if (value <= lastVersion) {
 						statesHasMap.put(value, ((VersionedMapStoreDeltaImpl) store).getState(value));

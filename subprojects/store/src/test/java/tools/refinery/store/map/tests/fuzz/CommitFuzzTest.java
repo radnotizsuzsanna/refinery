@@ -1,21 +1,19 @@
 package tools.refinery.store.map.tests.fuzz;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
-import java.util.Random;
-import java.util.stream.Stream;
-
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-
 import tools.refinery.store.map.VersionedMapStore;
 import tools.refinery.store.map.VersionedMapStoreBuilder;
 import tools.refinery.store.map.tests.fuzz.utils.FuzzTestUtils;
 import tools.refinery.store.map.tests.utils.MapTestEnvironment;
 
+import java.util.Random;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.fail;
 import static tools.refinery.store.map.tests.fuzz.utils.FuzzTestCollections.*;
 
 class CommitFuzzTest {
