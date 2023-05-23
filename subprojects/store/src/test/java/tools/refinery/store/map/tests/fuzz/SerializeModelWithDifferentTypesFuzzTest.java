@@ -1,7 +1,7 @@
 package tools.refinery.store.map.tests.fuzz;
 
-public class SerializeModelWithDifferentTypesFuzzTest {
-	/*private void runFuzzTest(String scenario, int seed, int steps, int maxKey, int maxValue,
+public class SerializeModelWithDifferentTypesFuzzTest {/*
+	private void runFuzzTest(String scenario, int seed, int steps, int maxKey, int maxValue,
 							 boolean nullDefault, int commitFrequency,
 							ModelStoreBuilder builder) {
 		Integer[] intValues = MapTestEnvironment.prepareIntegerValues(maxValue, nullDefault);
@@ -48,7 +48,7 @@ public class SerializeModelWithDifferentTypesFuzzTest {
 		VersionedMap<Integer, String> reference = store.createMap();
 		r = new Random(seed);
 
-	/*	for (int i = 0; i < steps; i++) {
+		for (int i = 0; i < steps; i++) {
 			int index = i + 1;
 			int nextKey = r.nextInt(maxKey);
 			String nextValue = values[r.nextInt(values.length)];

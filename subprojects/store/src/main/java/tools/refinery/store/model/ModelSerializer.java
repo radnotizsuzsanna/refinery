@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.logging.Logger;
 
 public class ModelSerializer {
 	HashMap<Class<?>, SerializerStrategy<?>> serializerStrategyMap;
@@ -24,6 +25,8 @@ public class ModelSerializer {
 	public ModelSerializer(){
 		this.serializerStrategyMap = new HashMap<>();
 	}
+
+	Logger logger = Logger.getLogger(ModelSerializer.class.getName());
 
 	public <T> void addStrategy(Class<T> valueType, SerializerStrategy<T> strategy){
 		serializerStrategyMap.put(valueType, strategy);
@@ -75,7 +78,7 @@ public class ModelSerializer {
 		byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
 		relations.writeInt(valueTypeByte.length);
 		relations.write(valueTypeByte);
-		System.out.println("\nWriting Relation valueType: " + valueTypeString);
+		logger.info("Writing Relation valueType: " + valueTypeString);
 
 		// Get the strategy. This will always match the type of <code>valueTypeClass</code> because we store
 		// the matching serializer for each value type in <code>serializerStrategyMap</code>.
@@ -87,15 +90,15 @@ public class ModelSerializer {
 		byte[] nameByte = name.getBytes(StandardCharsets.UTF_8);
 		relations.writeInt(nameByte.length);
 		relations.write(nameByte);
-		System.out.println("\nWriting Relation name: " + relation.name());
+		logger.info("Writing Relation name: " + relation.name());
 
 		//Writes out Relation arity
 		relations.writeInt(relation.arity());
-		System.out.println("Writing Relation arity: " + relation.arity());
+		logger.info("Writing Relation arity: " + relation.arity());
 
 		//Writes out defaultValue
 		serializerStrategy.writeValue(relations, relation.defaultValue());
-		System.out.println("Writing Relation defaultValue: " + relation.defaultValue());
+		logger.info("Writing Relation defaultValue: " + relation.defaultValue());
 
 		writeDeltaStore(relation, versionedMapStore, streams.get(relation), serializerStrategy);
 	}
@@ -116,7 +119,7 @@ public class ModelSerializer {
 				relations.readFully(valueTypeByte);
 				String valueTypeString = new String(valueTypeByte, StandardCharsets.UTF_8);
 				Class<?> valueTypeClass = Class.forName(valueTypeString);
-				System.out.println("\nReading Relation valueType: " + valueTypeString);
+				logger.info("Reading Relation valueType: " + valueTypeString);
 
 				SymbolVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass, modelStoreWithError);
 				if (pair == null) {
@@ -156,7 +159,6 @@ public class ModelSerializer {
 				var store = stores.get(entry.getKey());
 				var states = store.getStates();
 
-				//@SuppressWarnings("unchecked")
 				var statesHasMap = ((VersionedMapStoreDeltaImpl) mapStore).internalExposeStates();
 				for (Long value : states) {
 					if (value <= lastVersion) {
@@ -186,22 +188,22 @@ public class ModelSerializer {
 			byte[] nameByte = new byte[length];
 			relations.readFully(nameByte);
 			name = new String(nameByte, StandardCharsets.UTF_8);
-			System.out.println("\nReading Relation name: " + name);
+			logger.info("Reading Relation name: " + name);
 
 			//Reads Relation arity
 			arity = relations.readInt();
-			System.out.println("Reading Relation arity: " + arity);
+			logger.info("Reading Relation arity: " + arity);
 
 			//Reads defaultValue
 			defaultValue = serializerStrategy.readValue(relations);
-			System.out.println("Reading Relation defaultValue: " + defaultValue);
+			logger.info("Reading Relation defaultValue: " + defaultValue);
 		}catch (IOException exception){
 			return null;
 		}
 
 		//Creates Relation
 		var relation = new Symbol<>(name, arity, valueTypeClass, defaultValue);
-		System.out.println("Relation created: " + relation.name());
+		logger.info("Relation created: " + relation.name());
 
 		//Creates VersionedMapStoreDeltaImp
 		DataInputStream data = streams.get(relation.name());
@@ -209,7 +211,7 @@ public class ModelSerializer {
 		var mapStore = readDeltaStore(relation, data, serializerStrategy, modelStoreWithError);
 		if (modelStoreWithError.exception == null) modelStoreWithError.setGuiltyRelation(relation);
 
-		System.out.println("VersionedMapStoreDeltaImpl created.");
+		logger.info("VersionedMapStoreDeltaImpl created.");
 		return new SymbolVersionMapStorePair<>(relation, mapStore);
 	}
 
@@ -221,35 +223,35 @@ public class ModelSerializer {
 
 				//Writes out the version and the parent id of the mapTransaction
 				data.writeLong(i);
-				System.out.println("\tWriting version of transaction: " + i);
+				logger.info("\tWriting version of transaction: " + i);
 
 				int deltasLength = 0;
 
 				if(mapTransaction.version() == i){
 					if(mapTransaction.parent() == null) {
 						data.writeLong(-1);
-						System.out.println("\tWriting parent of transaction: -1");
+						logger.info("\tWriting parent of transaction: -1");
 					}
 					else{
 						data.writeLong(mapTransaction.parent().version());
-						System.out.println("\tWriting parent of transaction: " + mapTransaction.parent().version());
+						logger.info("\tWriting parent of transaction: " + mapTransaction.parent().version());
 					}
 					deltasLength = mapTransaction.deltas().length;
 				}
 				else{
 					data.writeLong(mapTransaction.version());
-					System.out.println("\tWriting parent of transaction: " + mapTransaction.version());
+					logger.info("\tWriting parent of transaction: " + mapTransaction.version());
 				}
 
 				//Writes out the number of deltas
 				data.writeInt(deltasLength);
-				System.out.println("\tWriting number of deltas: " + deltasLength);
+				logger.info("\tWriting number of deltas: " + deltasLength);
 
 				for (int j = 0; j < deltasLength; j++) {
 					MapDelta<Tuple, T> mapDelta = deltasOfTransaction[j];
 					//Writes out key
 					Tuple tuple = mapDelta.key();
-					System.out.println("\t\tWriting key: " + mapDelta.key());
+					logger.info("\t\tWriting key: " + mapDelta.key());
 
 					for (int k = 0; k < relation.arity(); k++) {
 						data.writeInt(tuple.get(k));
@@ -258,25 +260,24 @@ public class ModelSerializer {
 					//Writes out new and old value
 					if (mapDelta.oldValue() == null) serializerStrategy.writeValue(data, relation.defaultValue());
 					else serializerStrategy.writeValue(data, mapDelta.oldValue());
-					System.out.println("\t\tWriting oldValue:  " + mapDelta.oldValue());
+					logger.info("\t\tWriting oldValue:  " + mapDelta.oldValue());
 
 					serializerStrategy.writeValue(data, mapDelta.newValue());
-					System.out.println("\t\tWriting newValue:  " + mapDelta.newValue());
+					logger.info("\t\tWriting newValue:  " + mapDelta.newValue());
 				}
-				System.out.println();
 			}
 		}
 		else{
 			//Writes out the version and the parent id of the mapTransaction
 			data.writeLong(0);
-			System.out.println("\tWriting version of transaction: " + 0);
+			logger.info("\tWriting version of transaction: " + 0);
 
 			data.writeLong(-1);
-			System.out.println("\tWriting parent of transaction: -1");
+			logger.info("\tWriting parent of transaction: -1");
 
 			//Writes out the number of deltas
 			data.writeInt(0);
-			System.out.println("\tWriting number of deltas: " + 0);
+			logger.info("\tWriting number of deltas: " + 0);
 		}
 	}
 
@@ -292,11 +293,11 @@ public class ModelSerializer {
 		try{
 			while(data.available()!=0){
 				version = data.readLong();
-				System.out.println("\tReading version of transaction: " + version);
+				logger.info("\tReading version of transaction: " + version);
 				long parent = data.readLong();
-				System.out.println("\tReading parent of transaction: " + parent);
+				logger.info("\tReading parent of transaction: " + parent);
 				int deltasLength = data.readInt();
-				System.out.println("\tReading number of deltas: " + deltasLength);
+				logger.info("\tReading number of deltas: " + deltasLength);
 
 				if(deltasLength == 0){
 					MapTransaction<Tuple, T> parentTransaction = statesHasMap.get(parent);
@@ -312,14 +313,14 @@ public class ModelSerializer {
 							tupleArray[k] = data.readInt();
 						}
 						Tuple tuple = Tuple.of(tupleArray);
-						System.out.println("\t\tReading tuple: " + tuple);
+						logger.info("\t\tReading tuple: " + tuple);
 
 						//Reads the old and new value
 						var oldValue = serializerStrategy.readValue(data);
-						System.out.println("\t\tReading oldValue: " + oldValue);
+						logger.info("\t\tReading oldValue: " + oldValue);
 
 						var newValue = serializerStrategy.readValue(data);
-						System.out.println("\t\tReading newValue: " + newValue);
+						logger.info("\t\tReading newValue: " + newValue);
 						deltas[j] = new MapDelta<>(tuple, oldValue, newValue);
 					}
 					if(parent == -1){
