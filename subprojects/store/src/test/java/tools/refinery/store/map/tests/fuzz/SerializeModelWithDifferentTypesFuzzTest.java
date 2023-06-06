@@ -64,7 +64,6 @@ public class SerializeModelWithDifferentTypesFuzzTest {
 
 		for (int i = 0; i < steps; i++) {
 			int index = i + 1;
-			Tuple nextKey = Tuple.of(r.nextInt(maxKey), r.nextInt(maxKey));
 			Tuple nextKey1 = Tuple.of(r.nextInt(maxKey));
 			Integer nextValue1 = values1[r.nextInt(values1.length)];
 			Boolean nextValue2 = values2[r.nextInt(values1.length)];
@@ -156,15 +155,20 @@ public class SerializeModelWithDifferentTypesFuzzTest {
 		streamMapIn = new HashMap<>();
 		streamMapOut = new HashMap<>();
 
-		PipedOutputStream pipedOutput;
-		PipedInputStream pipedInput;
+		//PipedOutputStream pipedOutput;
+		//PipedInputStream pipedInput;
 		for (AnySymbol dataRepresentation : dataRepresentationList) {
-			pipedInput = new PipedInputStream();
+			/*pipedInput = new PipedInputStream();
 			pipedOutput = new PipedOutputStream();
 			pipedInput.connect(pipedOutput);
-
 			DataOutputStream dataOutputStream = new DataOutputStream(pipedOutput);
-			DataInputStream dataInputStream = new DataInputStream(pipedInput);
+			DataInputStream dataInputStream = new DataInputStream(pipedInput);*/
+
+			FileOutputStream fileOut =
+					new FileOutputStream("D:\\0Egyetem\\Refinery\\deltas\\data"+dataRepresentation.name()+".txt");
+			FileInputStream fileIn = new FileInputStream("D:\\0Egyetem\\Refinery\\deltas\\data"+dataRepresentation.name()+".txt");
+			DataOutputStream dataOutputStream  = new DataOutputStream(fileOut);
+			DataInputStream dataInputStream = new DataInputStream(fileIn);
 
 			streamMapOut.put((Symbol<?>) dataRepresentation, dataOutputStream);
 			streamMapIn.put(dataRepresentation.name(), dataInputStream);
@@ -176,12 +180,16 @@ public class SerializeModelWithDifferentTypesFuzzTest {
 	 * @throws IOException  When the connecting of the piped streams fails.
 	 */
 	void initializeRelationStreamsWithPipedStream() throws IOException {
-		PipedInputStream pipedInput = new PipedInputStream();
+		/*PipedInputStream pipedInput = new PipedInputStream();
 		PipedOutputStream pipedOutput = new PipedOutputStream();
 		pipedInput.connect(pipedOutput);
-
 		relationsOutputStream = new DataOutputStream(pipedOutput);
-		relationsInputStream = new DataInputStream(pipedInput);
+		relationsInputStream = new DataInputStream(pipedInput);*/
+
+		FileOutputStream fileOut = new FileOutputStream("D:\\0Egyetem\\Refinery\\deltas\\relation.txt");
+		FileInputStream fileIn = new FileInputStream("D:\\0Egyetem\\Refinery\\deltas\\relation.txt");
+		relationsOutputStream = new DataOutputStream(fileOut);
+		relationsInputStream = new DataInputStream(fileIn);
 	}
 	public static final String title = "Commit {index}/{0} Steps={1} Keys={2} Values={3} nullDefault={4} commit frequency={5} " +
 			"seed={6}";

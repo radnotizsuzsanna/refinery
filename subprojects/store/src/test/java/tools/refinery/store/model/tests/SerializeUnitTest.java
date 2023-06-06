@@ -14,7 +14,7 @@ public class SerializeUnitTest {
 		}
 		System.out.println("Started");
 		var x = new SerializeModelWithDifferentTypesFuzzTest();
-		x.runFuzzTest("Teljesitmenymeres", 0, 100, 10, 10,
+		x.runFuzzTest("Teljesitmenymeres", 0, 2500, 50, 50,
 				false, 10);
 		System.out.println("Finish");
 	}

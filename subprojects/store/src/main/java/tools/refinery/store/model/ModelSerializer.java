@@ -40,6 +40,7 @@ public class ModelSerializer {
 				if (dataRepresentation instanceof Symbol<?> relation) {
 					VersionedMapStore<?, ?> mapStore = entry.getValue();
 					if (mapStore instanceof VersionedMapStoreDeltaImpl<?, ?> deltaStore) {
+						///logger.info("Write relation");
 						writeRelation(relation, deltaStore, relations, streams);
 					} else {
 						throw new UnsupportedOperationException("Only delta stores are supported!");
@@ -99,6 +100,7 @@ public class ModelSerializer {
 		//Writes out defaultValue
 		serializerStrategy.writeValue(relations, relation.defaultValue());
 		//logger.info("Writing Relation defaultValue: " + relation.defaultValue());
+
 
 		writeDeltaStore(relation, versionedMapStore, streams.get(relation), serializerStrategy);
 	}
@@ -222,7 +224,11 @@ public class ModelSerializer {
 				MapDelta<Tuple, T>[] deltasOfTransaction = mapTransaction.deltas();
 
 				//Writes out the version and the parent id of the mapTransaction
-				data.writeLong(i);
+				try {
+					data.writeLong(i);
+				} catch (IOException e) {
+					//logger.info("exception");
+				}
 				//logger.info("\tWriting version of transaction: " + i);
 
 				int deltasLength = 0;
@@ -246,6 +252,7 @@ public class ModelSerializer {
 				//Writes out the number of deltas
 				data.writeInt(deltasLength);
 				//logger.info("\tWriting number of deltas: " + deltasLength);
+
 
 				for (int j = 0; j < deltasLength; j++) {
 					MapDelta<Tuple, T> mapDelta = deltasOfTransaction[j];
@@ -312,6 +319,7 @@ public class ModelSerializer {
 				int deltasLength = data.readInt();
 				//logger.info("\tReading number of deltas: " + deltasLength);
 
+
 				if(deltasLength == 0){
 					MapTransaction<Tuple, T> parentTransaction = statesHasMap.get(parent);
 					statesHasMap.put(version, parentTransaction);
@@ -358,7 +366,7 @@ public class ModelSerializer {
 					}
 				}
 				lastSuccessful = version;
-				System.out.println();
+
 			}
 		}
 		catch(IOException e){
