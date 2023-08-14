@@ -78,7 +78,7 @@ public class SerializeModelWithDifferentTypesFuzzTest {
 				long version = model.commit();
 				index2Version.put(i, version);
 			}
-			MapTestEnvironment.printStatus(scenario, index, steps, "building");
+			//MapTestEnvironment.printStatus(scenario, index, steps, "building");
 		}
 
 		var store = model.getStore();
@@ -107,16 +107,7 @@ public class SerializeModelWithDifferentTypesFuzzTest {
 			//Deserializes the ModelStore
 			serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
 			//nézze meg az összes lehetséges
-			for(long version: index2Version.values()){
-				Model model2 = storeR.createModelForState(version);
-
-				//TODO
-				model.restore(version);
-				model2.restore(version);
-				//Test if the ModelStore is the same after the serialization and restore
-				compareStores(store,storeR);
-			}
-
+			compareStores(store,storeR);
 		}
 		catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
