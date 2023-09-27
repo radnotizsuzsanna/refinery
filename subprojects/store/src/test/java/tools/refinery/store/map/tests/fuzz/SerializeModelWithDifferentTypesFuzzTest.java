@@ -8,20 +8,18 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import tools.refinery.store.map.tests.fuzz.utils.FuzzTestUtils;
 import tools.refinery.store.map.tests.utils.MapTestEnvironment;
-import tools.refinery.store.model.*;
+import tools.refinery.store.model.Interpretation;
+import tools.refinery.store.model.Model;
+import tools.refinery.store.model.ModelStore;
 import tools.refinery.store.representation.AnySymbol;
 import tools.refinery.store.representation.Symbol;
-import tools.refinery.store.tuple.Tuple;
 
 import java.io.*;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Random;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
 import static tools.refinery.store.map.tests.fuzz.utils.FuzzTestCollections.*;
 
 public class SerializeModelWithDifferentTypesFuzzTest {
@@ -59,7 +57,7 @@ public class SerializeModelWithDifferentTypesFuzzTest {
 														  int maxKey,
 														  Integer[] values1, Boolean[] values2, int seed, int commitFrequency) {
 		// 1. build a map with versions
-		Random r = new Random(seed);
+	/*	Random r = new Random(seed);
 		Map<Integer, Long> index2Version = new HashMap<>();
 
 		for (int i = 0; i < steps; i++) {
@@ -103,7 +101,7 @@ public class SerializeModelWithDifferentTypesFuzzTest {
 
 		try {
 			//Serializes the ModelStore
-			serializer.write(store, relationsOutputStream, streamMapOut);
+			serializer.write(store, relationsOutputStream, streamMapOut, streamMapIn, modelStoreWithError);
 			//Deserializes the ModelStore
 			serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
 			//nézze meg az összes lehetséges

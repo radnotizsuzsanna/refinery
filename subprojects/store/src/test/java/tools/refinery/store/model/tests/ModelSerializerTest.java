@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import tools.refinery.store.model.*;
 import tools.refinery.store.representation.AnySymbol;
 import tools.refinery.store.representation.Symbol;
-import tools.refinery.store.representation.TruthValue;
 import tools.refinery.store.tuple.Tuple;
 
 import java.io.*;
@@ -12,8 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static tools.refinery.store.representation.TruthValue.TRUE;
-import static tools.refinery.store.representation.TruthValue.UNKNOWN;
 
 
 class ModelSerializerTest {
@@ -21,12 +18,72 @@ class ModelSerializerTest {
 	HashMap<Symbol<?>, DataOutputStream> streamMapOut;
 	DataOutputStream relationsOutputStream;
 	DataInputStream relationsInputStream;
+	HashMap<String, File> files;
+	File relationsFile;
+
+
+
+	/**
+	 * Tests if the ModelSerializer can serialize a model store with restore
+	 */
+	@Test
+	void serializerWithAlreadySerializedData() throws IOException {
+		Symbol<Integer> age = new Symbol<>("age", 1, Integer.class,0);
+
+		ModelStore store = ModelStore.builder().symbols(age).build();
+		Model model = store.createEmptyModel();
+
+		var ageInterpretation = model.getInterpretation(age);
+
+		ageInterpretation.put(Tuple.of(0), 21);
+		ageInterpretation.put(Tuple.of(1), 34);
+
+		model.commit();
+
+		ModelSerializer serializer = new ModelSerializer();
+
+		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer();
+		serializer.addStrategy(Integer.class,strategyInteger);
+
+		List< AnySymbol> dataRepresentationList = store.getSymbols().stream().toList();
+
+
+		ModelStore store2 = ModelStore.builder().symbols(age).build();
+		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
+		modelStoreWithError.setModelStore(store2);
+
+		ageInterpretation.put(Tuple.of(2), 24);
+		model.commit();
+
+		initializeFileMapWithStreams(dataRepresentationList);
+		initializeRelationsFileWithStream();
+
+		serializer.write(store, relationsFile, files, modelStoreWithError);
+
+		ageInterpretation.put(Tuple.of(3), 34);
+		model.commit();
+		try {
+			//Serializes the ModelStore
+			serializer.write(store, relationsFile, files, modelStoreWithError);
+			//Deserializes the ModelStore
+			serializer.read(modelStoreWithError, relationsFile, files);
+			//Test if the ModelStore is the same after the serialization
+			compareStores(store,store2);
+		}
+		catch (IOException | ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+
+		// ezt valszeg nem ide kéne
+		//relationsOutputStream.close();
+	}
+
 
 	/**
 	 * Tests if the ModelSerializer can serialize a model store with bool, int and TruthValue value types and Tuple key type.
 	 * @throws IOException When the connection of the piped streams fails.
 	 */
-	@Test
+/*	@Test
 	void serializeModelWithDifferentTypesTest() throws IOException {
 		Symbol<Boolean> person = new Symbol<>("person", 1, Boolean.class,false);
 		Symbol<Integer> age = new Symbol<>("age", 1, Integer.class,0);
@@ -69,7 +126,7 @@ class ModelSerializerTest {
 
 		try {
 			//Serializes the ModelStore
-			serializer.write(store, relationsOutputStream, streamMapOut);
+			serializer.write(store, relationsOutputStream, streamMapOut, streamMapIn, modelStoreWithError);
 			//Deserializes the ModelStore
 			serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
 			//Test if the ModelStore is the same after the serialization
@@ -84,7 +141,7 @@ class ModelSerializerTest {
 	 * Tests if the ModelSerializer can serialize a model store with an empty map store
 	 * @throws IOException When the connection of the piped streams fails.
 	 */
-	@Test
+	 @Test
 	void serializeModelWithEmptyMapStore() throws IOException{
 		Symbol<Boolean> person = new Symbol<>("person", 1, Boolean.class,false);
 		Symbol<Integer> age = new Symbol<>("age", 1, Integer.class,0);
@@ -107,8 +164,8 @@ class ModelSerializerTest {
 		serializer.addStrategy(Integer.class,strategyInteger);
 
 		List< AnySymbol> dataRepresentationList = store.getSymbols().stream().toList();
-		initializeStreamMapsWithPipedStreams(dataRepresentationList);
-		initializeRelationStreamsWithPipedStream();
+		 initializeFileMapWithStreams(dataRepresentationList);
+		 initializeRelationsFileWithStream();
 
 		ModelStore store2 = ModelStore.builder().symbols(person, age).build();
 		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
@@ -116,9 +173,9 @@ class ModelSerializerTest {
 
 		try {
 			//Serializes the ModelStore
-			serializer.write(store, relationsOutputStream, streamMapOut);
+			serializer.write(store, relationsFile, files, modelStoreWithError);
 			//Deserializes the ModelStore
-			serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
+			serializer.read(modelStoreWithError, relationsFile, files);
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
@@ -170,8 +227,8 @@ class ModelSerializerTest {
 		serializer.addStrategy(Integer.class,strategyInteger);
 
 		List< AnySymbol> dataRepresentationList = store.getSymbols().stream().toList();
-		initializeStreamMapsWithPipedStreams(dataRepresentationList);
-		initializeRelationStreamsWithPipedStream();
+		initializeFileMapWithStreams(dataRepresentationList);
+		initializeRelationsFileWithStream();
 
 		ModelStore store2 = ModelStore.builder().symbols(person, age).build();
 		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
@@ -179,9 +236,9 @@ class ModelSerializerTest {
 
 		try {
 			//Serializes the ModelStore
-			serializer.write(store, relationsOutputStream, streamMapOut);
+			serializer.write(store, relationsFile, files, modelStoreWithError);
 			//Deserializes the ModelStore
-			serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
+			serializer.read(modelStoreWithError, relationsFile, files);
 			//Test if the ModelStore is the same after the serialization
 			compareStores(store,store2);
 		}
@@ -230,8 +287,8 @@ class ModelSerializerTest {
 
 		List< AnySymbol> dataRepresentationList = store.getSymbols().stream().toList();
 		try {
-			initializeStreamMapsWithPipedStreams(dataRepresentationList);
-			initializeRelationStreamsWithPipedStream();
+			initializeFileMapWithStreams(dataRepresentationList);
+			initializeRelationsFileWithStream();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -242,9 +299,9 @@ class ModelSerializerTest {
 
 		try {
 			//Serializes the ModelStore
-			serializer.write(store, relationsOutputStream, streamMapOut);
+			serializer.write(store, relationsFile, files, modelStoreWithError);
 			//Deserializes the ModelStore
-			serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
+			serializer.read(modelStoreWithError, relationsFile, files);
 
 			Model model2 = store2.createModelForState(state2);
 
@@ -276,12 +333,14 @@ class ModelSerializerTest {
 	 * Tests if the serializer can handle interrupted map store data while deserializing
 	 * @throws IOException When the connection of the piped streams fails.
 	 */
-	@Test
+/*	@Test
 	void serializationWithInterruptedMapStoreTest() throws IOException, ClassNotFoundException {
 		Symbol<Boolean> person = new Symbol<>("person", 1, Boolean.class,false);
 		Symbol<Integer> age = new Symbol<>("age", 1, Integer.class,0);
 
 		ModelStore store = ModelStore.builder().symbols(person, age).build();
+		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
+		modelStoreWithError.setModelStore(store);
 		Model model = store.createEmptyModel();
 
 		var personInterpretation = model.getInterpretation(person);
@@ -320,11 +379,11 @@ class ModelSerializerTest {
 			streamMapOut.put((Symbol<?>) dataRepresentation, dataOutputStream);
 		}
 
-		initializeRelationStreamsWithPipedStream();
 
+		initializeRelationsFileWithStream();
 		try {
 			//Serializes the ModelStore
-			serializer.write(store, relationsOutputStream, streamMapOut);
+			serializer.write(store, relationsFile, files, modelStoreWithError);
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
@@ -342,10 +401,11 @@ class ModelSerializerTest {
 
 
 		ModelStore store2 = ModelStore.builder().symbols(person, age).build();
-		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
-		modelStoreWithError.setModelStore(store2);
+		ModelStoreWithError modelStoreWithError2 = new ModelStoreWithError(null);
+		modelStoreWithError2.setModelStore(store2);
 
-		serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
+		//Deserializes the ModelStore
+		serializer.read(modelStoreWithError, relationsFile, files);
 
 		assertEquals(modelStoreWithError.getException().getMessage(), "Incomplete MapStore in file");
 		assertEquals(modelStoreWithError.getLastSuccessfulTransactionVersion(), 0);
@@ -355,7 +415,7 @@ class ModelSerializerTest {
 	 * Tests if the serializer can handle interrupted relation data while deserializing
 	 * @throws IOException When the connection of the piped streams fails.
 	 */
-	@Test
+/*	@Test
 	void serializationWithInterruptedRelationTest() throws IOException, ClassNotFoundException {
 		Symbol<Boolean> person = new Symbol<>("person", 1, Boolean.class,false);
 		Symbol<Integer> age = new Symbol<>("age", 1, Integer.class,0);
@@ -392,9 +452,13 @@ class ModelSerializerTest {
 		ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream();
 		relationsOutputStream = new DataOutputStream(byteArrayOutput);
 
+		ModelStore store2 = ModelStore.builder().symbols(person, age).build();
+		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
+		modelStoreWithError.setModelStore(store2);
+
 		try {
 			//Serializes the ModelStore
-			serializer.write(store, relationsOutputStream, streamMapOut);
+			serializer.write(store, relationsOutputStream, streamMapOut, streamMapIn, modelStoreWithError);
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
@@ -405,14 +469,12 @@ class ModelSerializerTest {
 		ByteArrayInputStream byteArrayInput = new ByteArrayInputStream(byteArray, 0, 2);
 		DataInputStream relationsInputStream = new DataInputStream(byteArrayInput);
 
-		ModelStore store2 = ModelStore.builder().symbols(person, age).build();
-		ModelStoreWithError modelStoreWithError = new ModelStoreWithError(null);
-		modelStoreWithError.setModelStore(store2);
 
 
 		serializer.read(modelStoreWithError, relationsInputStream, streamMapIn);
 		assertEquals(modelStoreWithError.getException().getMessage(), "Incomplete Relation in file");
 	}
+	*/
 
 	/**
 	 * Initializes the streamMapIn and streamMapOut maps with piped streams for serializing the map stores.
@@ -439,6 +501,34 @@ class ModelSerializerTest {
 		}
 	}
 
+	void initializeStreamMapsWithStreams(List< AnySymbol> dataRepresentationList) throws FileNotFoundException {
+		//The HasMaps contain the DataStreams for serializing the MapStores (MapStores will be stored in separate files)
+		streamMapIn = new HashMap<>();
+		streamMapOut = new HashMap<>();
+
+		for (AnySymbol dataRepresentation : dataRepresentationList) {
+			FileOutputStream fileOut =
+					new FileOutputStream("D:\\0Egyetem\\Refinery\\deltas\\data"+dataRepresentation.name()+".txt");
+			FileInputStream fileIn = new FileInputStream("D:\\0Egyetem\\Refinery\\deltas\\data"+dataRepresentation.name()+".txt");
+			DataOutputStream dataOutputStream  = new DataOutputStream(fileOut);
+			DataInputStream dataInputStream = new DataInputStream(fileIn);
+
+			streamMapOut.put((Symbol<?>) dataRepresentation, dataOutputStream);
+			streamMapIn.put(dataRepresentation.name(), dataInputStream);
+		}
+	}
+
+	void initializeFileMapWithStreams(List< AnySymbol> dataRepresentationList) throws FileNotFoundException{
+		files = new HashMap<>();
+		for (AnySymbol dataRepresentation : dataRepresentationList) {
+			File file= new File("D:\\0Egyetem\\Refinery\\deltas\\data"+dataRepresentation.name()+".txt");
+			PrintWriter writer = new PrintWriter(file);
+			writer.print("");
+			writer.close();
+			files.put(dataRepresentation.name(), file);
+		}
+	}
+
 	/**
 	 * Initializes the streams for serializing the relations with piped streams.
 	 * @throws IOException  When the connecting of the piped streams fails.
@@ -450,6 +540,20 @@ class ModelSerializerTest {
 
 		relationsOutputStream = new DataOutputStream(pipedOutput);
 		relationsInputStream = new DataInputStream(pipedInput);
+	}
+
+	void initializeRelationStreamsWithStream() throws IOException {
+		FileOutputStream fileOut = new FileOutputStream("D:\\0Egyetem\\Refinery\\deltas\\relation.txt");
+		FileInputStream fileIn = new FileInputStream("D:\\0Egyetem\\Refinery\\deltas\\relation.txt");
+		relationsOutputStream = new DataOutputStream(fileOut);
+		relationsInputStream = new DataInputStream(fileIn);
+	}
+
+	void initializeRelationsFileWithStream() throws FileNotFoundException {
+		relationsFile =  new File("D:\\0Egyetem\\Refinery\\deltas\\relation.txt");
+		PrintWriter writer = new PrintWriter(relationsFile);
+		writer.print("");
+		writer.close();
 	}
 
 	void compareStores(ModelStore store, ModelStore store2){

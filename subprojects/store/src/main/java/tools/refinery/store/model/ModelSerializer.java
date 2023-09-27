@@ -10,9 +10,7 @@ import tools.refinery.store.representation.AnySymbol;
 import tools.refinery.store.representation.Symbol;
 import tools.refinery.store.tuple.Tuple;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,15 +31,57 @@ public class ModelSerializer {
 
 	}
 
-	public void write(ModelStore store, DataOutputStream relations, HashMap<Symbol<?>, DataOutputStream> streams) throws IOException {
+	public void write(ModelStore store, File relationsFile, HashMap<String, File> files, ModelStoreWithError modelStoreWithError) throws IOException {
+
+		FileOutputStream fileOut = new FileOutputStream(relationsFile, true);
+		DataOutputStream relations = new DataOutputStream(fileOut);
+
+		FileInputStream fileIn = new FileInputStream((relationsFile));
+		DataInputStream relationsIn = new DataInputStream(fileIn);
+
+		boolean emptyRelations = false;
+		try {
+			relationsIn.readInt();
+		}
+		catch(IOException e){
+			emptyRelations = true;
+		}
 		if (store instanceof ModelStoreImpl impl) {
+			//itt nézem meg mennyi van kírva
+
+			var mapStores =
+					(Map<AnySymbol, VersionedMapStore<Tuple, ?>>)((ModelStoreImpl )modelStoreWithError.modelStore).stores;
+
+			var firstEntry = mapStores.entrySet().iterator().next();
+			var key = firstEntry.getKey();
+			File file = files.get(key.name());
+			FileInputStream fileInputStream = new FileInputStream(file);
+			DataInputStream data = new DataInputStream(fileInputStream);
+			//DataInputStream data = inStreams.get(key.name());
+
+			var valueTypeClass = key.valueType();
+
+			SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
+
+			ModelStore storeForStateCounting = ModelStore.builder().symbols(key).build();
+			ModelStoreWithError modelStoreWithErrorForStateCounting = new ModelStoreWithError(null);
+			modelStoreWithErrorForStateCounting.setModelStore(storeForStateCounting);
+
+
+
+			readDeltaStore((Symbol) key, data, serializerStrategy, modelStoreWithErrorForStateCounting);
+
+			var lastSerializedState = modelStoreWithErrorForStateCounting.getLastSuccessfulTransactionVersion();
+			System.out.println("last serialized state " + lastSerializedState);
+
+
 			for (Entry<? extends AnySymbol, ? extends VersionedMapStore<Tuple, ?>> entry : impl.stores.entrySet()) {
 				AnySymbol dataRepresentation = entry.getKey();
 				if (dataRepresentation instanceof Symbol<?> relation) {
 					VersionedMapStore<?, ?> mapStore = entry.getValue();
 					if (mapStore instanceof VersionedMapStoreDeltaImpl<?, ?> deltaStore) {
 						///logger.info("Write relation");
-						writeRelation(relation, deltaStore, relations, streams);
+						writeRelation(relation, deltaStore, relations, files, lastSerializedState, emptyRelations);
 					} else {
 						throw new UnsupportedOperationException("Only delta stores are supported!");
 					}
@@ -51,7 +91,7 @@ public class ModelSerializer {
 				}
 			}
 			relations.flush();
-			relations.close();
+		//	relations.close();
 		}
 	}
 
@@ -61,55 +101,67 @@ public class ModelSerializer {
 	 * @param relation The relation to serialize.
 	 * @param rawVersionedMapStore The store to serialize. Must have {@link Tuple} keys and <code>T</code> values.
 	 * @param relations The stream to write relation metadata to.
-	 * @param streams The streams to write relation contents to.
+	 * @param files The streams to write relation contents to.
 	 * @param <T> The type of values to serialize.
 	 * @throws IOException When the serialization fails.
 	 */
 	private <T> void writeRelation(Symbol<T> relation,
 								   VersionedMapStoreDeltaImpl<?, ?> rawVersionedMapStore,
 								   DataOutputStream relations,
-								   HashMap<Symbol<?>, DataOutputStream> streams) throws IOException {
+								   HashMap<String,File> files,
+								   long lastSerializedState,
+								   boolean emptyRelations) throws IOException {
+
 		// Guaranteed to succeed by the precondition of this method.
 		@SuppressWarnings("unchecked")
 		VersionedMapStoreDeltaImpl<Tuple, T> versionedMapStore = (VersionedMapStoreDeltaImpl<Tuple, T>) rawVersionedMapStore;
-		//Writes out Relation ValueType
 		Class<T> valueTypeClass = relation.valueType();
-		String valueTypeString = valueTypeClass.toString();
-		valueTypeString = valueTypeString.replace("class ", "");
-		byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
-		relations.writeInt(valueTypeByte.length);
-		relations.write(valueTypeByte);
-		//logger.info("Writing Relation valueType: " + valueTypeString);
-
 		// Get the strategy. This will always match the type of <code>valueTypeClass</code> because we store
 		// the matching serializer for each value type in <code>serializerStrategyMap</code>.
 		@SuppressWarnings("unchecked")
 		SerializerStrategy<T> serializerStrategy = (SerializerStrategy<T>) serializerStrategyMap.get(valueTypeClass);
 
-		//Writes out Relation name
-		String name = relation.name();
-		byte[] nameByte = name.getBytes(StandardCharsets.UTF_8);
-		relations.writeInt(nameByte.length);
-		relations.write(nameByte);
-		//logger.info("Writing Relation name: " + relation.name());
+		if(emptyRelations){
+			//Writes out Relation ValueType
 
-		//Writes out Relation arity
-		relations.writeInt(relation.arity());
-		//logger.info("Writing Relation arity: " + relation.arity());
-
-		//Writes out defaultValue
-		serializerStrategy.writeValue(relations, relation.defaultValue());
-		//logger.info("Writing Relation defaultValue: " + relation.defaultValue());
+			String valueTypeString = valueTypeClass.toString();
+			valueTypeString = valueTypeString.replace("class ", "");
+			byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
+			relations.writeInt(valueTypeByte.length);
+			relations.write(valueTypeByte);
+			//logger.info("Writing Relation valueType: " + valueTypeString);
 
 
-		writeDeltaStore(relation, versionedMapStore, streams.get(relation), serializerStrategy);
+
+			//Writes out Relation name
+			String name = relation.name();
+			byte[] nameByte = name.getBytes(StandardCharsets.UTF_8);
+			relations.writeInt(nameByte.length);
+			relations.write(nameByte);
+			//logger.info("Writing Relation name: " + relation.name());
+
+			//Writes out Relation arity
+			relations.writeInt(relation.arity());
+			//logger.info("Writing Relation arity: " + relation.arity());
+
+			//Writes out defaultValue
+			serializerStrategy.writeValue(relations, relation.defaultValue());
+			//logger.info("Writing Relation defaultValue: " + relation.defaultValue());
+		}
+
+
+
+		writeDeltaStore(relation, versionedMapStore, files.get(relation.name()), serializerStrategy, lastSerializedState);
 	}
 
-	public void read(ModelStoreWithError modelStoreWithError, DataInputStream relations, HashMap<String, DataInputStream> streams) throws IOException,
+	public void read(ModelStoreWithError modelStoreWithError, File relationsFile,
+					 HashMap<String, File> files) throws IOException,
 			ClassNotFoundException {
 
 		Map<AnySymbol, VersionedMapStore<?, ?>> stores = new HashMap<>();
 
+		FileInputStream fileIn = new FileInputStream(relationsFile);
+		DataInputStream relations = new DataInputStream(fileIn);
 		@SuppressWarnings("unchecked")
 		var mapStores = (Map<AnySymbol, VersionedMapStore<Tuple, ?>>)((ModelStoreImpl )modelStoreWithError.modelStore).stores;
 
@@ -123,7 +175,8 @@ public class ModelSerializer {
 				Class<?> valueTypeClass = Class.forName(valueTypeString);
 				//logger.info("Reading Relation valueType: " + valueTypeString);
 
-				SymbolVersionMapStorePair<Tuple, ?> pair = readRelation(relations, streams, valueTypeClass, modelStoreWithError);
+				SymbolVersionMapStorePair<Tuple, ?> pair = readRelation(relations, files, valueTypeClass,
+						modelStoreWithError);
 				if (pair == null) {
 					modelStoreWithError.setException(new Exception("Incomplete Relation in file"));
 				}
@@ -175,7 +228,7 @@ public class ModelSerializer {
 	}
 
 	private <T> SymbolVersionMapStorePair<Tuple, T> readRelation(DataInputStream relations,
-																   HashMap<String, DataInputStream> streams,
+																   HashMap<String, File> files,
 																   Class<T> valueTypeClass, ModelStoreWithError modelStoreWithError) throws IOException, ClassNotFoundException {
 		@SuppressWarnings("unchecked")
 		SerializerStrategy<T> serializerStrategy = (SerializerStrategy<T>) serializerStrategyMap.get(valueTypeClass);
@@ -208,18 +261,26 @@ public class ModelSerializer {
 		//logger.info("Relation created: " + relation.name());
 
 		//Creates VersionedMapStoreDeltaImp
-		DataInputStream data = streams.get(relation.name());
+		FileInputStream fileInputStream = new FileInputStream(files.get(relation.name()));
+		DataInputStream dataIn = new DataInputStream(fileInputStream);
+		//DataInputStream dataIn = streams.get(relation.name());
 
-		var mapStore = readDeltaStore(relation, data, serializerStrategy, modelStoreWithError);
+		var mapStore = readDeltaStore(relation, dataIn, serializerStrategy, modelStoreWithError);
 		if (modelStoreWithError.exception == null) modelStoreWithError.setGuiltyRelation(relation);
 
 		//logger.info("VersionedMapStoreDeltaImpl created.");
 		return new SymbolVersionMapStorePair<>(relation, mapStore);
 	}
 
-	public <T> void writeDeltaStore(Symbol<T> relation, VersionedMapStoreDeltaImpl<Tuple, T> mapStore, DataOutputStream data, SerializerStrategy<T> serializerStrategy) throws IOException {
+	public <T> void writeDeltaStore(Symbol<T> relation, VersionedMapStoreDeltaImpl<Tuple, T> mapStore,
+									File file, SerializerStrategy<T> serializerStrategy,
+									long lastSerializedState) throws IOException {
+
+		FileOutputStream fileOutputStream = new FileOutputStream(file, true);
+		DataOutputStream data = new DataOutputStream(fileOutputStream);
+
 		if(mapStore.getState(0) != null){
-			for(int i = 0; i < mapStore.getStates().size(); i++){
+			for(int i = (int) lastSerializedState+1; i < mapStore.getStates().size(); i++){
 				MapTransaction<Tuple, T> mapTransaction = mapStore.getState(i);
 				MapDelta<Tuple, T>[] deltasOfTransaction = mapTransaction.deltas();
 
@@ -286,6 +347,7 @@ public class ModelSerializer {
 					//logger.info("\t\tWriting newValue:  " + mapDelta.newValue());
 				}
 			}
+
 		}
 		else{
 			//Writes out the version and the parent id of the mapTransaction
@@ -299,15 +361,17 @@ public class ModelSerializer {
 			data.writeInt(0);
 			//logger.info("\tWriting number of deltas: " + 0);
 		}
+		data.flush();
 	}
 
 	public <T> VersionedMapStoreDeltaImpl<Tuple,T> readDeltaStore(Symbol<T> relation, DataInputStream data, SerializerStrategy<T> serializerStrategy, ModelStoreWithError modelStoreWithError) {
 		//HashMap<Long, MapTransaction<Tuple, T>> mapTransactionArray = new HashMap<>();
-		long lastSuccessful = 0;
+		long lastSuccessful = -1;
 		var mapStore =
 				(VersionedMapStoreDeltaImpl<Tuple,T>)	VersionedMapStoreBuilder.<Tuple, T>builder().setDefaultValue(relation.defaultValue()).buildOne();
 
 		Map<Long, MapTransaction<Tuple, T>> statesHasMap = mapStore.internalExposeStates();
+
 
 		long version = 0;
 		try{
@@ -383,7 +447,7 @@ public class ModelSerializer {
 
 			return mapStore;
 		}
-		modelStoreWithError.setLastSuccessfulTransactionVersion(version);
+		modelStoreWithError.setLastSuccessfulTransactionVersion(lastSuccessful);
 		return mapStore;
 	}
 }
