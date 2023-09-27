@@ -1,5 +1,11 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+
 import ms from 'ms';
-import { actions, assign, createMachine, RaiseAction } from 'xstate';
+import { actions, assign, createMachine } from 'xstate';
 
 const { raise } = actions;
 
@@ -21,6 +27,8 @@ export type WebSocketEvent =
   | { type: 'PAGE_RESUME' }
   | { type: 'ONLINE' }
   | { type: 'OFFLINE' }
+  | { type: 'GENERATION_STARTED' }
+  | { type: 'GENERATION_ENDED' }
   | { type: 'ERROR'; message: string };
 
 export default createMachine(
@@ -99,7 +107,7 @@ export default createMachine(
                 initial: 'opening',
                 states: {
                   opening: {
-                    always: [{ target: '#timedOut', in: '#tabHidden' }],
+                    always: [{ target: '#timedOut', in: '#mayDisconnect' }],
                     after: {
                       OPEN_TIMEOUT: {
                         actions: 'raiseTimeoutError',
@@ -137,7 +145,7 @@ export default createMachine(
                 initial: 'active',
                 states: {
                   active: {
-                    always: [{ target: 'inactive', in: '#tabHidden' }],
+                    always: [{ target: 'inactive', in: '#mayDisconnect' }],
                   },
                   inactive: {
                     always: [{ target: 'active', in: '#tabVisible' }],
@@ -167,13 +175,42 @@ export default createMachine(
           visibleOrUnknown: {
             id: 'tabVisible',
             on: {
-              TAB_HIDDEN: 'hidden',
+              // The `always` transition will move to `#mayDisconnect`
+              // if disconnection is possible.
+              TAB_HIDDEN: '#keepAlive',
             },
           },
           hidden: {
-            id: 'tabHidden',
             on: {
               TAB_VISIBLE: 'visibleOrUnknown',
+            },
+            initial: 'mayDisconnect',
+            states: {
+              mayDisconnect: {
+                id: 'mayDisconnect',
+                always: { target: 'keepAlive', in: '#generationRunning' },
+              },
+              keepAlive: {
+                id: 'keepAlive',
+                always: { target: 'mayDisconnect', in: '#generationIdle' },
+              },
+            },
+          },
+        },
+      },
+      generation: {
+        initial: 'idle',
+        states: {
+          idle: {
+            id: 'generationIdle',
+            on: {
+              GENERATION_STARTED: 'running',
+            },
+          },
+          running: {
+            id: 'generationRunning',
+            on: {
+              GENERATION_ENDED: 'idle',
             },
           },
         },
@@ -217,16 +254,15 @@ export default createMachine(
         ...context,
         errors: [],
       })),
-      // Workaround from https://github.com/statelyai/xstate/issues/1414#issuecomment-699972485
       raiseTimeoutError: raise({
         type: 'ERROR',
         message: 'Open timeout',
-      }) as RaiseAction<WebSocketEvent>,
+      }),
       raisePromiseRejectionError: (_context, { data }) =>
-        raise({
+        raise<WebSocketContext, WebSocketEvent>({
           type: 'ERROR',
-          message: data,
-        }) as RaiseAction<WebSocketEvent>,
+          message: String(data),
+        }),
     },
   },
 );

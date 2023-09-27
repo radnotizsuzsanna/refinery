@@ -1,44 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+
+import { styled } from '@mui/material/styles';
 import { configure } from 'mobx';
 import { type Root, createRoot } from 'react-dom/client';
 
 import App from './App';
 import RootStore from './RootStore';
 
-const initialValue = `// Metamodel
-class Person {
-    Person[] friend opposite friend
-}
-
-class Post {
-    Person author
-    Post[0..1] replyTo
-}
-
-// Constraints
-error replyToNotFriend(Post x, Post y) <->
-    replyTo(x, y),
-    author(x, xAuthor),
-    author(y, yAuthor),
-    !friend(xAuthor, yAuthor).
-
-error replyToCycle(Post x) <-> replyTo+(x,x).
-
-// Instance model
-Person(a).
-Person(b).
-friend(a, b).
-friend(b, a).
-Post(p1).
-author(p1, a).
-Post(p2).
-author(p2, b).
-replyTo(p2, p1).
-
-!author(Post::new, a). // Automatically inferred: author(Post::new, b).
-
-// Scope
-scope Post = 10..15, Person += 0.
-`;
+// Make sure `styled` ends up in the entry chunk.
+// https://github.com/mui/material-ui/issues/32727#issuecomment-1659945548
+(window as unknown as { fixViteIssue: unknown }).fixViteIssue = styled;
 
 configure({
   enforceActions: 'always',
@@ -48,7 +23,7 @@ let HotRootStore = RootStore;
 let HotApp = App;
 
 function createStore(): RootStore {
-  return new HotRootStore(initialValue);
+  return new HotRootStore();
 }
 
 let rootStore = createStore();

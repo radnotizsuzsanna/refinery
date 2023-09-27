@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.language.tests.serializer;
 
 import com.google.inject.Inject;
@@ -173,7 +178,7 @@ class ProblemSerializerTest {
 		var variable = ProblemFactory.eINSTANCE.createImplicitVariable();
 		variable.setName("q");
 		conjunction.getImplicitVariables().add(variable);
-		var equals = nodeType.feature("equals");
+		var equals = builtin.pred("equals").get();
 		conjunction.getLiterals().add(createAtom(equals, parameter1, variable));
 		conjunction.getLiterals().add(createAtom(equals, variable, parameter2));
 		pred.getBodies().add(conjunction);
@@ -207,7 +212,7 @@ class ProblemSerializerTest {
 		pred.getParameters().add(parameter);
 		var conjunction = ProblemFactory.eINSTANCE.createConjunction();
 		var atom = ProblemFactory.eINSTANCE.createAtom();
-		var equals = nodeType.feature("equals");
+		var equals = builtin.pred("equals").get();
 		atom.setRelation(equals);
 		var arg1 = ProblemFactory.eINSTANCE.createVariableOrNodeExpr();
 		arg1.setVariableOrNode(parameter);

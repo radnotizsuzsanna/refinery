@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+
 import type {
   CompletionContext,
   CompletionResult,
@@ -20,9 +26,13 @@ import { makeAutoObservable, observable, runInAction } from 'mobx';
 import { nanoid } from 'nanoid';
 
 import type PWAStore from '../PWAStore';
+import GraphStore from '../graph/GraphStore';
 import getLogger from '../utils/getLogger';
 import type XtextClient from '../xtext/XtextClient';
+import type { SemanticsSuccessResult } from '../xtext/xtextServiceResults';
 
+import EditorErrors from './EditorErrors';
+import GeneratedModelStore from './GeneratedModelStore';
 import LintPanelStore from './LintPanelStore';
 import SearchPanelStore from './SearchPanelStore';
 import createEditorState from './createEditorState';
@@ -48,13 +58,30 @@ export default class EditorStore {
 
   readonly lintPanel: LintPanelStore;
 
+  readonly delayedErrors: EditorErrors;
+
   showLineNumbers = false;
 
   disposed = false;
 
-  constructor(initialValue: string, pwaStore: PWAStore) {
+  analyzing = false;
+
+  semanticsError: string | undefined;
+
+  graph: GraphStore;
+
+  generatedModels = new Map<string, GeneratedModelStore>();
+
+  selectedGeneratedModel: string | undefined;
+
+  constructor(
+    initialValue: string,
+    pwaStore: PWAStore,
+    onUpdate: (text: string) => void,
+  ) {
     this.id = nanoid();
     this.state = createEditorState(initialValue, this);
+    this.delayedErrors = new EditorErrors(this);
     this.searchPanel = new SearchPanelStore(this);
     this.lintPanel = new LintPanelStore(this);
     (async () => {
@@ -63,12 +90,13 @@ export default class EditorStore {
         if (this.disposed) {
           return;
         }
-        this.client = new LazyXtextClient(this, pwaStore);
+        this.client = new LazyXtextClient(this, pwaStore, onUpdate);
         this.client.start();
       });
     })().catch((error) => {
       log.error('Failed to load XtextClient', error);
     });
+    this.graph = new GraphStore();
     makeAutoObservable<EditorStore, 'client'>(this, {
       id: false,
       state: observable.ref,
@@ -207,19 +235,6 @@ export default class EditorStore {
     this.doCommand(nextDiagnostic);
   }
 
-  get highestDiagnosticLevel(): Diagnostic['severity'] | undefined {
-    if (this.errorCount > 0) {
-      return 'error';
-    }
-    if (this.warningCount > 0) {
-      return 'warning';
-    }
-    if (this.infoCount > 0) {
-      return 'info';
-    }
-    return undefined;
-  }
-
   updateSemanticHighlighting(ranges: IHighlightRange[]): void {
     this.dispatch(setSemanticHighlighting(ranges));
   }
@@ -276,8 +291,109 @@ export default class EditorStore {
     return true;
   }
 
+  analysisStarted() {
+    this.analyzing = true;
+  }
+
+  analysisCompleted(semanticAnalysisSkipped = false) {
+    this.analyzing = false;
+    if (semanticAnalysisSkipped) {
+      this.semanticsError = undefined;
+    }
+  }
+
+  setSemanticsError(semanticsError: string) {
+    this.semanticsError = semanticsError;
+  }
+
+  setSemantics(semantics: SemanticsSuccessResult) {
+    this.semanticsError = undefined;
+    this.graph.setSemantics(semantics);
+  }
+
   dispose(): void {
     this.client?.dispose();
+    this.delayedErrors.dispose();
     this.disposed = true;
+  }
+
+  startModelGeneration(randomSeed?: number): void {
+    this.client
+      ?.startModelGeneration(randomSeed)
+      ?.catch((error) => log.error('Could not start model generation', error));
+  }
+
+  addGeneratedModel(uuid: string, randomSeed: number): void {
+    this.generatedModels.set(uuid, new GeneratedModelStore(randomSeed));
+    this.selectGeneratedModel(uuid);
+  }
+
+  cancelModelGeneration(): void {
+    this.client
+      ?.cancelModelGeneration()
+      ?.catch((error) => log.error('Could not start model generation', error));
+  }
+
+  selectGeneratedModel(uuid: string | undefined): void {
+    if (uuid === undefined) {
+      this.selectedGeneratedModel = uuid;
+      return;
+    }
+    if (this.generatedModels.has(uuid)) {
+      this.selectedGeneratedModel = uuid;
+      return;
+    }
+    this.selectedGeneratedModel = undefined;
+  }
+
+  deleteGeneratedModel(uuid: string | undefined): void {
+    if (uuid === undefined) {
+      return;
+    }
+    if (this.selectedGeneratedModel === uuid) {
+      let previous: string | undefined;
+      let found: string | undefined;
+      this.generatedModels.forEach((_value, key) => {
+        if (key === uuid) {
+          found = previous;
+        }
+        previous = key;
+      });
+      this.selectGeneratedModel(found);
+    }
+    const generatedModel = this.generatedModels.get(uuid);
+    if (generatedModel !== undefined && generatedModel.running) {
+      this.cancelModelGeneration();
+    }
+    this.generatedModels.delete(uuid);
+  }
+
+  modelGenerationCancelled(): void {
+    this.generatedModels.forEach((value) =>
+      value.setError('Model generation cancelled'),
+    );
+  }
+
+  setGeneratedModelMessage(uuid: string, message: string): void {
+    this.generatedModels.get(uuid)?.setMessage(message);
+  }
+
+  setGeneratedModelError(uuid: string, message: string): void {
+    this.generatedModels.get(uuid)?.setError(message);
+  }
+
+  setGeneratedModelSemantics(
+    uuid: string,
+    semantics: SemanticsSuccessResult,
+  ): void {
+    this.generatedModels.get(uuid)?.setSemantics(semantics);
+  }
+
+  get generating(): boolean {
+    let generating = false;
+    this.generatedModels.forEach((value) => {
+      generating = generating || value.running;
+    });
+    return generating;
   }
 }

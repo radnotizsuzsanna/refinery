@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.language.tests;
 
 import com.google.inject.Inject;
@@ -26,7 +31,6 @@ class ProblemParsingTest {
 				class Person {
 					Person[0..*] children opposite parent
 					Person[0..1] parent opposite children
-					int age
 					TaxStatus taxStatus
 				}
 
@@ -46,8 +50,6 @@ class ProblemParsingTest {
 				children(anne, ciri).
 				?children(bob, ciri).
 				taxStatus(anne, ADULT).
-				age(bob): 21..35.
-				age(ciri): 10.
 				""");
 		assertThat(problem.errors(), empty());
 	}

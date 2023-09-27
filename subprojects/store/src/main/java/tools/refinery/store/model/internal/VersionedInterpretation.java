@@ -1,14 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.store.model.internal;
 
-import tools.refinery.store.map.Cursor;
-import tools.refinery.store.map.DiffCursor;
-import tools.refinery.store.map.VersionedMap;
-import tools.refinery.store.map.VersionedMapStore;
-import tools.refinery.store.map.internal.MapDiffCursor;
+import tools.refinery.store.map.*;
 import tools.refinery.store.model.Interpretation;
 import tools.refinery.store.model.InterpretationListener;
 import tools.refinery.store.model.Model;
-import tools.refinery.store.model.TupleHashProvider;
 import tools.refinery.store.representation.AnySymbol;
 import tools.refinery.store.representation.Symbol;
 import tools.refinery.store.tuple.Tuple;
@@ -16,19 +16,16 @@ import tools.refinery.store.tuple.Tuple;
 import java.util.ArrayList;
 import java.util.List;
 
-public class VersionedInterpretation<T> implements Interpretation<T> {
+public abstract class VersionedInterpretation<T> implements Interpretation<T> {
 	private final ModelImpl model;
 	private final Symbol<T> symbol;
-	private final VersionedMapStore<Tuple, T> store;
 	private final VersionedMap<Tuple, T> map;
 	private final List<InterpretationListener<T>> listeners = new ArrayList<>();
 	private final List<InterpretationListener<T>> restoreListeners = new ArrayList<>();
 
-	private VersionedInterpretation(ModelImpl model, Symbol<T> symbol, VersionedMapStore<Tuple, T> store,
-									VersionedMap<Tuple, T> map) {
+	protected VersionedInterpretation(ModelImpl model, Symbol<T> symbol, VersionedMap<Tuple, T> map) {
 		this.model = model;
 		this.symbol = symbol;
-		this.store = store;
 		this.map = map;
 	}
 
@@ -53,6 +50,7 @@ public class VersionedInterpretation<T> implements Interpretation<T> {
 					.formatted(symbol, symbol.arity()));
 		}
 	}
+
 	@Override
 	public T get(Tuple key) {
 		checkKey(key);
@@ -64,7 +62,7 @@ public class VersionedInterpretation<T> implements Interpretation<T> {
 		return map.getAll();
 	}
 
-	private void notifyListeners(Tuple key, T fromValue, T toValue, boolean restoring) {
+	protected void valueChanged(Tuple key, T fromValue, T toValue, boolean restoring) {
 		var listenerList = restoring ? restoreListeners : listeners;
 		int listenerCount = listenerList.size();
 		// Use a for loop instead of a for-each loop to avoid <code>Iterator</code> allocation overhead.
@@ -77,23 +75,21 @@ public class VersionedInterpretation<T> implements Interpretation<T> {
 	@Override
 	public T put(Tuple key, T value) {
 		checkKey(key);
+		model.checkCancelled();
 		model.markAsChanged();
 		var oldValue = map.put(key, value);
-		notifyListeners(key, oldValue, value, false);
+		valueChanged(key, oldValue, value, false);
 		return oldValue;
 	}
 
 	@Override
 	public void putAll(Cursor<Tuple, T> cursor) {
-		if (listeners.isEmpty()) {
-			map.putAll(cursor);
-			return;
-		}
 		model.markAsChanged();
 		if (cursor.getDependingMaps().contains(map)) {
 			List<Tuple> keys = new ArrayList<>();
 			List<T> values = new ArrayList<>();
 			while (cursor.move()) {
+				model.checkCancelled();
 				keys.add(cursor.getKey());
 				values.add(cursor.getValue());
 			}
@@ -110,21 +106,23 @@ public class VersionedInterpretation<T> implements Interpretation<T> {
 	}
 
 	@Override
-	public DiffCursor<Tuple, T> getDiffCursor(long to) {
-		var fromCursor = getAll();
-		var toCursor = store.createMap(to).getAll();
-		return new MapDiffCursor<>(TupleHashProvider.INSTANCE, symbol.defaultValue(), fromCursor, toCursor);
+	public DiffCursor<Tuple, T> getDiffCursor(Version to) {
+		return map.getDiffCursor(to);
 	}
 
-	public long commit() {
+	Version commit() {
 		return map.commit();
 	}
 
-	public void restore(long state) {
-		if (!restoreListeners.isEmpty()) {
+	protected boolean shouldNotifyRestoreListeners() {
+		return !restoreListeners.isEmpty();
+	}
+
+	public void restore(Version state) {
+		if (shouldNotifyRestoreListeners()) {
 			var diffCursor = getDiffCursor(state);
 			while (diffCursor.move()) {
-				notifyListeners(diffCursor.getKey(), diffCursor.getFromValue(), diffCursor.getToValue(), true);
+				valueChanged(diffCursor.getKey(), diffCursor.getFromValue(), diffCursor.getToValue(), true);
 			}
 		}
 		map.restore(state);
@@ -148,14 +146,23 @@ public class VersionedInterpretation<T> implements Interpretation<T> {
 		@SuppressWarnings("unchecked")
 		var typedSymbol = (Symbol<T>) symbol;
 		var map = store.createMap();
-		return new VersionedInterpretation<>(model, typedSymbol, store, map);
+		return of(model, typedSymbol, map);
 	}
 
 	static <T> VersionedInterpretation<T> of(ModelImpl model, AnySymbol symbol, VersionedMapStore<Tuple, T> store,
-											 long state) {
+											 Version state) {
 		@SuppressWarnings("unchecked")
 		var typedSymbol = (Symbol<T>) symbol;
 		var map = store.createMap(state);
-		return new VersionedInterpretation<>(model, typedSymbol, store, map);
+		return of(model, typedSymbol, map);
+	}
+
+	private static <T> VersionedInterpretation<T> of(ModelImpl model, Symbol<T> typedSymbol,
+													 VersionedMap<Tuple, T> map) {
+		return switch (typedSymbol.arity()) {
+			case 0 -> new NullaryVersionedInterpretation<>(model, typedSymbol, map);
+			case 1 -> new UnaryVersionedInterpretation<>(model, typedSymbol, map);
+			default -> new IndexedVersionedInterpretation<>(model, typedSymbol, map);
+		};
 	}
 }

@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.store.map;
 
 public sealed interface AnyVersionedMap extends Versioned permits VersionedMap {
@@ -37,4 +42,9 @@ public sealed interface AnyVersionedMap extends Versioned permits VersionedMap {
 	@SuppressWarnings("squid:S1133")
 	@Deprecated(since = "0.0.0")
 	boolean equals(Object obj);
+
+	/**
+	 * Checks the integrity of the map, and throws an exception if an inconsistency is detected.
+	 */
+	void checkIntegrity();
 }

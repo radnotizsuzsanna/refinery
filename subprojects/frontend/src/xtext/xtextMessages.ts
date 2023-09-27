@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+
 /* eslint-disable @typescript-eslint/no-redeclare -- Declare types with their companion objects */
 
 import { z } from 'zod';
@@ -28,7 +34,12 @@ export const XtextWebErrorResponse = z.object({
 
 export type XtextWebErrorResponse = z.infer<typeof XtextWebErrorResponse>;
 
-export const XtextWebPushService = z.enum(['highlight', 'validate']);
+export const XtextWebPushService = z.enum([
+  'highlight',
+  'validate',
+  'semantics',
+  'modelGeneration',
+]);
 
 export type XtextWebPushService = z.infer<typeof XtextWebPushService>;
 

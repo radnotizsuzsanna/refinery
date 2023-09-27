@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.language.web.xtext.server.push;
 
 import org.eclipse.xtext.web.server.IServiceContext;
@@ -22,12 +27,7 @@ public class PushWebDocumentProvider implements IWebDocumentProvider {
 
 	@Override
 	public XtextWebDocument get(String resourceId, IServiceContext serviceContext) {
-		if (resourceId == null) {
-			return new XtextWebDocument(null, synchronizerProvider.get());
-		} else {
-			// We only need to send push messages if a resourceId is specified.
-			return new PushWebDocument(resourceId,
-					serviceContext.getSession().get(DocumentSynchronizer.class, () -> this.synchronizerProvider.get()));
-		}
+		return new PushWebDocument(resourceId,
+				serviceContext.getSession().get(DocumentSynchronizer.class, () -> this.synchronizerProvider.get()));
 	}
 }

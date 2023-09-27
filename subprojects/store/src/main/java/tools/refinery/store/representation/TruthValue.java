@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.store.representation;
 
 public enum TruthValue {
@@ -31,6 +36,10 @@ public enum TruthValue {
 		return this != UNKNOWN;
 	}
 
+	public boolean isConcrete() {
+		return this == TRUE || this == FALSE;
+	}
+
 	public boolean must() {
 		return this == TRUE || this == ERROR;
 	}
@@ -50,9 +59,18 @@ public enum TruthValue {
 	public TruthValue merge(TruthValue other) {
 		return switch (this) {
 			case TRUE -> other == UNKNOWN || other == TRUE ? TRUE : ERROR;
-			case FALSE -> other == TruthValue.UNKNOWN || other == TruthValue.FALSE ? FALSE : ERROR;
+			case FALSE -> other == UNKNOWN || other == FALSE ? FALSE : ERROR;
 			case UNKNOWN -> other;
-			default -> ERROR;
+			case ERROR -> ERROR;
+		};
+	}
+
+	public TruthValue join(TruthValue other) {
+		return switch (this) {
+			case TRUE -> other == ERROR || other == TRUE ? TRUE : UNKNOWN;
+			case FALSE -> other == ERROR || other == FALSE ? FALSE : UNKNOWN;
+			case UNKNOWN -> UNKNOWN;
+			case ERROR -> other;
 		};
 	}
 }

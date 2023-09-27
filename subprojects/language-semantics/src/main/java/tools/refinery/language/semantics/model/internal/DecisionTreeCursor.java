@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.language.semantics.model.internal;
 
 import tools.refinery.store.map.Cursor;
@@ -62,6 +67,15 @@ class DecisionTreeCursor implements Cursor<Tuple, TruthValue> {
 
 	@Override
 	public boolean move() {
+		while (moveOne()) {
+			if (!value.equals(defaultValue)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean moveOne() {
 		boolean found = false;
 		if (path.isEmpty() && !terminated) {
 			found = root.moveNext(levels - 1, this);

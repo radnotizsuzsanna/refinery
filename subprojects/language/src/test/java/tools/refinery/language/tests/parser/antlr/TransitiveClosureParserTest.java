@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.language.tests.parser.antlr;
 
 import com.google.inject.Inject;
@@ -24,9 +29,7 @@ class TransitiveClosureParserTest {
 	@Test
 	void binaryAddOperatorTest() {
 		var problem = parseHelper.parse("""
-					fn int a().
-					fn int b().
-					pred foo() <-> a() + (b()) > 10.
+					pred foo(a, b) <-> a + (b) > 10.
 				""");
 		assertThat(problem.errors(), empty());
 		var literal = problem.pred("foo").conj(0).lit(0).get();

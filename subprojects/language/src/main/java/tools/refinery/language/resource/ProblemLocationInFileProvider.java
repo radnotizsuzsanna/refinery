@@ -1,9 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.language.resource;
 
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.xtext.resource.DefaultLocationInFileProvider;
 import org.eclipse.xtext.util.ITextRegion;
-
 import tools.refinery.language.model.problem.ImplicitVariable;
 import tools.refinery.language.model.problem.Node;
 import tools.refinery.language.utils.ProblemUtil;

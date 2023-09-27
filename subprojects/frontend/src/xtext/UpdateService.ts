@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+
 import type { ChangeDesc, Transaction } from '@codemirror/state';
 import { debounce } from 'lodash-es';
 import { nanoid } from 'nanoid';
@@ -16,6 +22,7 @@ import {
   FormattingResult,
   isConflictResult,
   OccurrencesResult,
+  ModelGenerationStartedResult,
 } from './xtextServiceResults';
 
 const UPDATE_TIMEOUT_MS = 500;
@@ -49,6 +56,7 @@ export default class UpdateService {
   constructor(
     private readonly store: EditorStore,
     private readonly webSocketClient: XtextWebSocketClient,
+    private readonly onUpdate: (text: string) => void,
   ) {
     this.resourceName = `${nanoid(7)}.problem`;
     this.tracker = new UpdateStateTracker(store);
@@ -115,6 +123,7 @@ export default class UpdateService {
     if (!this.tracker.needsUpdate) {
       return;
     }
+    this.onUpdate(this.store.state.sliceDoc());
     await this.tracker.runExclusive(() => this.updateExclusive());
   }
 
@@ -127,6 +136,7 @@ export default class UpdateService {
       return;
     }
     log.trace('Editor delta', delta);
+    this.store.analysisStarted();
     const result = await this.webSocketClient.send({
       resource: this.resourceName,
       serviceType: 'update',
@@ -151,6 +161,7 @@ export default class UpdateService {
   private async updateFullTextExclusive(): Promise<void> {
     log.debug('Performing full text update');
     this.tracker.prepareFullTextUpdateExclusive();
+    this.store.analysisStarted();
     const result = await this.webSocketClient.send({
       resource: this.resourceName,
       serviceType: 'update',
@@ -332,5 +343,44 @@ export default class UpdateService {
       return { cancelled: true };
     }
     return { cancelled: false, data: parsedOccurrencesResult };
+  }
+
+  async startModelGeneration(
+    randomSeed: number,
+  ): Promise<CancellableResult<ModelGenerationStartedResult>> {
+    try {
+      await this.updateOrThrow();
+    } catch (error) {
+      if (error instanceof CancelledError || error instanceof TimeoutError) {
+        return { cancelled: true };
+      }
+      throw error;
+    }
+    log.debug('Starting model generation');
+    const data = await this.webSocketClient.send({
+      resource: this.resourceName,
+      serviceType: 'modelGeneration',
+      requiredStateId: this.xtextStateId,
+      start: true,
+      randomSeed,
+    });
+    if (isConflictResult(data)) {
+      return { cancelled: true };
+    }
+    const parsedResult = ModelGenerationStartedResult.parse(data);
+    return { cancelled: false, data: parsedResult };
+  }
+
+  async cancelModelGeneration(): Promise<CancellableResult<unknown>> {
+    log.debug('Cancelling model generation');
+    const data = await this.webSocketClient.send({
+      resource: this.resourceName,
+      serviceType: 'modelGeneration',
+      cancel: true,
+    });
+    if (isConflictResult(data)) {
+      return { cancelled: true };
+    }
+    return { cancelled: false, data };
   }
 }

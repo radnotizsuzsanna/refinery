@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.language.web.tests;
 
 import org.eclipse.xtext.ide.ExecutorServiceProvider;
@@ -29,6 +34,7 @@ public class ProblemWebInjectorProvider extends ProblemInjectorProvider {
 		// the tasks in the service and the {@link
 		// org.eclipse.xtext.testing.extensions.InjectionExtension}.
 		return new ProblemWebModule() {
+			@Override
 			@SuppressWarnings("unused")
 			public Class<? extends ExecutorServiceProvider> bindExecutorServiceProvider() {
 				return AwaitTerminationExecutorServiceProvider.class;

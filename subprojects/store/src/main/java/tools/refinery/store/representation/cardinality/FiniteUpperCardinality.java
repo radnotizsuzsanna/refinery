@@ -1,6 +1,12 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.store.representation.cardinality;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.IntBinaryOperator;
 
@@ -14,6 +20,15 @@ public record FiniteUpperCardinality(int finiteUpperBound) implements UpperCardi
 	@Override
 	public UpperCardinality add(UpperCardinality other) {
 		return lift(other, Integer::sum);
+	}
+
+	@Override
+	@Nullable
+	public UpperCardinality take(int count) {
+		if (finiteUpperBound < count) {
+			return null;
+		}
+		return new FiniteUpperCardinality(finiteUpperBound - count);
 	}
 
 	@Override
@@ -44,12 +59,25 @@ public record FiniteUpperCardinality(int finiteUpperBound) implements UpperCardi
 
 	private UpperCardinality lift(@NotNull UpperCardinality other, IntBinaryOperator operator) {
 		if (other instanceof FiniteUpperCardinality finiteUpperCardinality) {
-			return UpperCardinalities.valueOf(operator.applyAsInt(finiteUpperBound,
+			return UpperCardinalities.atMost(operator.applyAsInt(finiteUpperBound,
 					finiteUpperCardinality.finiteUpperBound));
 		}
 		if (other instanceof UnboundedUpperCardinality) {
 			return UpperCardinalities.UNBOUNDED;
 		}
 		throw new IllegalArgumentException("Unknown UpperCardinality: " + other);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		FiniteUpperCardinality that = (FiniteUpperCardinality) o;
+		return finiteUpperBound == that.finiteUpperBound;
+	}
+
+	@Override
+	public int hashCode() {
+		return finiteUpperBound;
 	}
 }

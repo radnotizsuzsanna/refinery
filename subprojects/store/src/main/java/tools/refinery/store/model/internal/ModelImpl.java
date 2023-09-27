@@ -1,34 +1,41 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.store.model.internal;
 
-import tools.refinery.store.adapter.AdapterList;
-import tools.refinery.store.adapter.AnyModelAdapterType;
+import tools.refinery.store.adapter.AdapterUtils;
 import tools.refinery.store.adapter.ModelAdapter;
-import tools.refinery.store.adapter.ModelAdapterType;
 import tools.refinery.store.map.DiffCursor;
+import tools.refinery.store.map.Version;
 import tools.refinery.store.model.*;
 import tools.refinery.store.representation.AnySymbol;
 import tools.refinery.store.representation.Symbol;
 import tools.refinery.store.tuple.Tuple;
+import tools.refinery.store.util.CancellationToken;
 
 import java.util.*;
 
 public class ModelImpl implements Model {
-	private final ModelStore store;
-	private long state;
-	private Map<? extends AnySymbol, ? extends VersionedInterpretation<?>> interpretations;
-	private final AdapterList<ModelAdapter> adapters;
+	private final ModelStoreImpl store;
+	private Version state;
+	private LinkedHashMap<? extends AnySymbol, ? extends VersionedInterpretation<?>> interpretations;
+	private final List<ModelAdapter> adapters;
 	private final List<ModelListener> listeners = new ArrayList<>();
+	private final CancellationToken cancellationToken;
 	private boolean uncommittedChanges;
 	private ModelAction pendingAction = ModelAction.NONE;
-	private long restoringToState = NO_STATE_ID;
+	private Version restoringToState = null;
 
-	ModelImpl(ModelStore store, long state, int adapterCount) {
+	ModelImpl(ModelStoreImpl store, Version state, int adapterCount) {
 		this.store = store;
 		this.state = state;
-		adapters = new AdapterList<>(adapterCount);
+		adapters = new ArrayList<>(adapterCount);
+		cancellationToken = store.getCancellationToken();
 	}
 
-	void setInterpretations(Map<? extends AnySymbol, ? extends VersionedInterpretation<?>> interpretations) {
+	void setInterpretations(LinkedHashMap<? extends AnySymbol, ? extends VersionedInterpretation<?>> interpretations) {
 		this.interpretations = interpretations;
 	}
 
@@ -38,7 +45,7 @@ public class ModelImpl implements Model {
 	}
 
 	@Override
-	public long getState() {
+	public Version getState() {
 		return state;
 	}
 
@@ -54,7 +61,7 @@ public class ModelImpl implements Model {
 	}
 
 	@Override
-	public ModelDiffCursor getDiffCursor(long to) {
+	public ModelDiffCursor getDiffCursor(Version to) {
 		var diffCursors = new HashMap<AnySymbol, DiffCursor<Tuple, ?>>(interpretations.size());
 		for (var entry : interpretations.entrySet()) {
 			diffCursors.put(entry.getKey(), entry.getValue().getDiffCursor(to));
@@ -62,7 +69,7 @@ public class ModelImpl implements Model {
 		return new ModelDiffCursor(diffCursors);
 	}
 
-	private void setState(long state) {
+	private void setState(Version state) {
 		this.state = state;
 		uncommittedChanges = false;
 	}
@@ -79,11 +86,12 @@ public class ModelImpl implements Model {
 	}
 
 	private boolean hasPendingAction() {
-		return pendingAction != ModelAction.NONE || restoringToState != NO_STATE_ID;
+		return pendingAction != ModelAction.NONE || restoringToState != null;
 	}
 
 	@Override
-	public long commit() {
+	public Version commit() {
+		checkCancelled();
 		if (hasPendingAction()) {
 			throw pendingActionError("commit");
 		}
@@ -91,43 +99,42 @@ public class ModelImpl implements Model {
 		try {
 			int listenerCount = listeners.size();
 			int i = listenerCount;
-			long version = 0;
+
+			// Before commit message to listeners
 			while (i > 0) {
 				i--;
 				listeners.get(i).beforeCommit();
 			}
-			boolean versionSet = false;
-			for (var interpretation : interpretations.values()) {
-				long newVersion = interpretation.commit();
-				if (versionSet) {
-					if (version != newVersion) {
-						throw new IllegalStateException("Interpretations in model have different versions (%d and %d)"
-								.formatted(version, newVersion));
-					}
-				} else {
-					version = newVersion;
-					versionSet = true;
-				}
+
+			// Doing the commit on the interpretations
+			Version[] interpretationVersions = new Version[interpretations.size()];
+			int j = 0;
+			for (var interpretationEntry : interpretations.entrySet()) {
+				checkCancelled();
+				interpretationVersions[j++] = interpretationEntry.getValue().commit();
 			}
-			setState(version);
+			ModelVersion modelVersion = new ModelVersion(interpretationVersions);
+			setState(modelVersion);
+
+			// After commit message to listeners
 			while (i < listenerCount) {
 				listeners.get(i).afterCommit();
 				i++;
 			}
-			return version;
+
+			return modelVersion;
 		} finally {
 			pendingAction = ModelAction.NONE;
 		}
 	}
 
 	@Override
-	public void restore(long version) {
+	public void restore(Version version) {
+		checkCancelled();
 		if (hasPendingAction()) {
-			throw pendingActionError("restore to %d".formatted(version));
+			throw pendingActionError("restore to %s".formatted(version));
 		}
-		if (!store.getStates().contains(version)) {
-			throw new IllegalArgumentException("Store does not contain state %d".formatted(version));
-		}
+
 		pendingAction = ModelAction.RESTORE;
 		restoringToState = version;
 		try {
@@ -137,9 +144,12 @@ public class ModelImpl implements Model {
 				i--;
 				listeners.get(i).beforeRestore(version);
 			}
+			int j = 0;
 			for (var interpretation : interpretations.values()) {
-				interpretation.restore(version);
+				checkCancelled();
+				interpretation.restore(ModelVersion.getInternalVersion(version, j++));
 			}
+
 			setState(version);
 			while (i < listenerCount) {
 				listeners.get(i).afterRestore();
@@ -147,7 +157,7 @@ public class ModelImpl implements Model {
 			}
 		} finally {
 			pendingAction = ModelAction.NONE;
-			restoringToState = NO_STATE_ID;
+			restoringToState = null;
 		}
 	}
 
@@ -156,23 +166,23 @@ public class ModelImpl implements Model {
 			case NONE -> throw new IllegalArgumentException("Trying to throw pending action error when there is no " +
 					"pending action");
 			case COMMIT -> "commit";
-			case RESTORE -> "restore to %d".formatted(restoringToState);
+			case RESTORE -> "restore to %s".formatted(restoringToState);
 		};
 		return new IllegalStateException("Cannot %s due to pending %s".formatted(currentActionName, pendingActionName));
 	}
 
 	@Override
-	public <T extends ModelAdapter> Optional<T> tryGetAdapter(ModelAdapterType<? extends T, ?, ?> adapterType) {
-		return adapters.tryGet(adapterType, adapterType.getModelAdapterClass());
+	public <T extends ModelAdapter> Optional<T> tryGetAdapter(Class<? extends T> adapterType) {
+		return AdapterUtils.tryGetAdapter(adapters, adapterType);
 	}
 
 	@Override
-	public <T extends ModelAdapter> T getAdapter(ModelAdapterType<T, ?, ?> adapterType) {
-		return adapters.get(adapterType, adapterType.getModelAdapterClass());
+	public <T extends ModelAdapter> T getAdapter(Class<T> adapterType) {
+		return AdapterUtils.getAdapter(adapters, adapterType);
 	}
 
-	void addAdapter(AnyModelAdapterType adapterType, ModelAdapter adapter) {
-		adapters.add(adapterType, adapter);
+	void addAdapter(ModelAdapter adapter) {
+		adapters.add(adapter);
 	}
 
 	@Override
@@ -183,5 +193,10 @@ public class ModelImpl implements Model {
 	@Override
 	public void removeListener(ModelListener listener) {
 		listeners.remove(listener);
+	}
+
+	@Override
+	public void checkCancelled() {
+		cancellationToken.checkCancelled();
 	}
 }

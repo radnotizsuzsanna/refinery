@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package tools.refinery.store.representation.cardinality;
 
 public final class UpperCardinalities {
@@ -21,7 +26,7 @@ public final class UpperCardinalities {
 		throw new IllegalStateException("This is a static utility class and should not be instantiated directly");
 	}
 
-	public static UpperCardinality valueOf(int upperBound) {
+	public static UpperCardinality atMost(int upperBound) {
 		if (upperBound < 0) {
 			return UNBOUNDED;
 		}

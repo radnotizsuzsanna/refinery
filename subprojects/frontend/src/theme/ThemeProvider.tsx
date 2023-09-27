@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2023 The Refinery Authors <https://refinery.tools/>
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+
 import {
   alpha,
   createTheme,
@@ -6,7 +12,6 @@ import {
   type ThemeOptions,
   ThemeProvider as MaterialUiThemeProvider,
   type TypographyStyle,
-  useTheme,
   type CSSObject,
 } from '@mui/material/styles';
 import { observer } from 'mobx-react-lite';
@@ -70,17 +75,19 @@ function createResponsiveTheme(
     ...options,
     typography: {
       fontFamily:
-        '"InterVariable", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-      fontWeightMedium: 600,
+        '"Open Sans Variable", "Open Sans", "Roboto", "Helvetica", "Arial", sans-serif',
+      fontWeightMedium: 500,
       fontWeightEditorNormal: 400,
       fontWeightEditorBold: 700,
       button: {
-        // 24px line height for 14px button text to fix browser rounding errors.
-        lineHeight: 1.714286,
+        fontWeight: 600,
+        fontVariationSettings: '"wdth" 87.5',
+        fontSize: '1rem',
+        lineHeight: 1.5,
       },
       editor: {
         fontFamily:
-          '"JetBrains MonoVariable", "JetBrains Mono", "Cascadia Code", "Fira Code", monospace',
+          '"JetBrains Mono Variable", "JetBrains Mono", "Cascadia Code", "Fira Code", monospace',
         fontFeatureSettings: '"liga", "calt"',
         // `rem` for JetBrains MonoVariable make the text too large in Safari.
         fontSize: '16px',
@@ -146,7 +153,7 @@ function createResponsiveTheme(
               }, {}),
             },
           },
-          sizeSmall: { fontSize: '0.75rem' },
+          sizeSmall: { fontSize: '0.875rem', lineHeight: '1.75' },
           sizeLarge: { fontSize: '1rem' },
           text: { '&.rounded': { padding: '6px 14px' } },
           textSizeSmall: { '&.rounded': { padding: '4px 8px' } },
@@ -282,7 +289,7 @@ const darkTheme = (() => {
           secondary: secondaryText,
           disabled: '#5c6370',
         },
-        divider: alpha(secondaryText, 0.24),
+        divider: alpha(primaryText, 0.24),
         outer: {
           background: darkBackground,
           border: '#181a1f',
@@ -350,15 +357,14 @@ export function ContrastThemeProvider({
 }: {
   children?: ReactNode;
 }): JSX.Element {
-  const theme = useTheme();
   const contrastTheme = useContext(ContrastThemeContext);
   if (!contrastTheme) {
     throw new Error('ContrastThemeProvider must be used within ThemeProvider');
   }
   return (
-    <ThemeAndContrastThemeProvider theme={contrastTheme} contrastTheme={theme}>
+    <MaterialUiThemeProvider theme={contrastTheme}>
       {children}
-    </ThemeAndContrastThemeProvider>
+    </MaterialUiThemeProvider>
   );
 }
 
@@ -378,7 +384,7 @@ const ThemeProvider = observer(function ThemeProvider({
   return (
     <ThemeAndContrastThemeProvider
       theme={darkMode ? darkTheme : lightTheme}
-      contrastTheme={darkMode ? lightTheme : darkTheme}
+      contrastTheme={darkTheme}
     >
       {children}
     </ThemeAndContrastThemeProvider>
