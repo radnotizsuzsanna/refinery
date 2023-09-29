@@ -15,7 +15,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -99,7 +98,6 @@ public class SerializerTest {
 		serializer.addStrategy(Boolean.class, strategy);
 		SerializerStrategy<Integer> strategy2 = new TupleIntegerSerializer();
 		serializer.addStrategy(Integer.class, strategy2);
-
 
 		try {
 			ArrayList<File> files = initializeAndGetFiles(2);
