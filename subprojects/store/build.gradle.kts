@@ -11,5 +11,6 @@ plugins {
 
 dependencies {
 	implementation(libs.eclipseCollections.api)
-	runtimeOnly(libs.eclipseCollections)
+    implementation(project(mapOf("path" to ":refinery-interpreter")))
+    runtimeOnly(libs.eclipseCollections)
 }
