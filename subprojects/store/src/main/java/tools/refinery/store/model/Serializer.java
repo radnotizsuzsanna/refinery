@@ -27,7 +27,7 @@ public class Serializer {
 			FileOutputStream fileFileStream= new FileOutputStream(files.get(i), true);
 			DataOutputStream fileDataStream = new DataOutputStream(fileFileStream);
 
-			Class valueTypeClass =  ((MapTransaction) versions.get(0)).deltas()[0].getNewValue().getClass();
+			Class valueTypeClass =  ((MapTransaction) versions.get(i)).deltas()[0].getNewValue().getClass();
 			String valueTypeString = valueTypeClass.toString();
 			valueTypeString = valueTypeString.replace("class ", "");
 			byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
