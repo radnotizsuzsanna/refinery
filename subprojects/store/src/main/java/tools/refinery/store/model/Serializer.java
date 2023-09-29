@@ -36,25 +36,35 @@ public class Serializer {
 				fileDataStream.writeInt(valueTypeByte.length);
 				fileDataStream.write(valueTypeByte);
 
-				int arity =((Tuple) ((MapTransaction<?,?>) versions.get(0)).deltas()[0].getKey()).getSize();
-				fileDataStream.writeInt(arity);
+				if(((MapTransaction<?,?>) versions.get(0)).deltas()[0].getKey() instanceof Tuple){
+					int arity =((Tuple) ((MapTransaction<?,?>) versions.get(0)).deltas()[0].getKey()).getSize();
+					fileDataStream.writeInt(arity);
 
-				SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
+					SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
 
-				// depth?
-				//fileDataStream.writeInt(i);
-				while(version != null){
-					MapDelta<?,?>[] deltas = version.deltas();
-					fileDataStream.writeInt(deltas.length);
-					for (MapDelta delta : deltas) {
-						Tuple tuple = (Tuple) delta.key();
-						for (int k = 0; k < arity; k++) {
-							fileDataStream.writeInt(tuple.get(k));
+					// depth?
+					//fileDataStream.writeInt(i);
+					while(version != null){
+						MapDelta<?,?>[] deltas = version.deltas();
+						fileDataStream.writeInt(deltas.length);
+						for (MapDelta delta : deltas) {
+							Tuple tuple = (Tuple) delta.key();
+							for (int k = 0; k < arity; k++) {
+								fileDataStream.writeInt(tuple.get(k));
+							}
+							writeValue(serializerStrategy, fileDataStream, delta);
 						}
-						writeValue(serializerStrategy, fileDataStream, delta);
+						version = version.parent();
 					}
-					version = version.parent();
 				}
+				else{
+					throw new UnsupportedOperationException(
+							"Only Tuple keys are supported during serialization.");
+				}
+
+			}else {
+				throw new UnsupportedOperationException(
+						"Only MapTransaction versions are supported during serialization.");
 			}
 		}
 
