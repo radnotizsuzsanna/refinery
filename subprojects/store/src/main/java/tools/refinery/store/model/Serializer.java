@@ -9,67 +9,93 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.TreeSet;
 
 public class Serializer {
 	HashMap<Class<?>, SerializerStrategy<?>> serializerStrategyMap;
+	HashMap<Long, Version> serializedVersions;
+	HashMap<Version, Long> serializedIDs;
+	HashMap<Long, Version> deSerializedVersions;
+	Long lastVersion;
 
 	public <T> void addStrategy(Class<T> valueType, SerializerStrategy<T> strategy){
 		serializerStrategyMap.put(valueType, strategy);
-
 	}
 
 	public Serializer(){
 		this.serializerStrategyMap = new HashMap<>();
+		this.serializedVersions = new HashMap<>();
+		this.serializedIDs = new HashMap<>();
+		this.deSerializedVersions = new HashMap<>();
+		this.lastVersion = 0L;
 	}
 
-	public void write(ArrayList<Version> versions, ArrayList<File> files) throws IOException {
+	public void write(List<Version> versions, File file) throws IOException {
+		FileOutputStream fileFileStream= new FileOutputStream(file, true);
+		DataOutputStream fileDataStream = new DataOutputStream(fileFileStream);
 
-		for (int i = 0; i < versions.size(); i++) {
-			if (versions.get(i) instanceof MapTransaction<?, ?> version) {
-				FileOutputStream fileFileStream= new FileOutputStream(files.get(i), true);
-				DataOutputStream fileDataStream = new DataOutputStream(fileFileStream);
+		if (versions.get(0) instanceof MapTransaction<?, ?>) {
+			Class<?> valueTypeClass =((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getNewValue().getClass();
+			SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
+			String valueTypeString = valueTypeClass.toString();
+			valueTypeString = valueTypeString.replace("class ", "");
+			byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
+			fileDataStream.writeInt(valueTypeByte.length);
+			fileDataStream.write(valueTypeByte);
 
-				Class<?> valueTypeClass =  ((MapTransaction<?,?>) versions.get(i)).deltas()[0].getNewValue().getClass();
-				String valueTypeString = valueTypeClass.toString();
-				valueTypeString = valueTypeString.replace("class ", "");
-				byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
-				fileDataStream.writeInt(valueTypeByte.length);
-				fileDataStream.write(valueTypeByte);
+			if (((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getKey() instanceof Tuple){
+				int arity = ((Tuple) ((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getKey()).getSize();
+				fileDataStream.writeInt(arity);
+				for (Version value : versions) {
+					MapTransaction<?, ?> version = (MapTransaction<?, ?>) value;
 
-				if(((MapTransaction<?,?>) versions.get(0)).deltas()[0].getKey() instanceof Tuple){
-					int arity =((Tuple) ((MapTransaction<?,?>) versions.get(0)).deltas()[0].getKey()).getSize();
-					fileDataStream.writeInt(arity);
+					while (version != null) {
+						if (!serializedVersions.containsValue(version)) {
+							//Writing out ID
+							serializedVersions.put(lastVersion, version);
+							serializedIDs.put(version, lastVersion);
+							fileDataStream.writeLong(lastVersion);
 
-					SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
-
-					// depth?
-					//fileDataStream.writeInt(i);
-					while(version != null){
-						MapDelta<?,?>[] deltas = version.deltas();
-						fileDataStream.writeInt(deltas.length);
-						for (MapDelta delta : deltas) {
-							Tuple tuple = (Tuple) delta.key();
-							for (int k = 0; k < arity; k++) {
-								fileDataStream.writeInt(tuple.get(k));
+							//Writing out parent ID
+							Version parent = version.parent();
+							if (parent == null) {
+								fileDataStream.writeLong(-1);
+							} else if (!serializedIDs.containsKey(version.parent())) {
+								fileDataStream.writeLong(lastVersion + 1);
+							} else {
+								Long parentID = serializedIDs.get(parent);
+								fileDataStream.writeLong(parentID);
 							}
-							writeValue(serializerStrategy, fileDataStream, delta);
+
+							//Writing out depth
+							fileDataStream.writeInt(version.depth());
+
+							//Writing out number of deltas
+							MapDelta<?, ?>[] deltas = version.deltas();
+							fileDataStream.writeInt(deltas.length);
+							for (MapDelta delta : deltas) {
+								Tuple tuple = (Tuple) delta.key();
+								for (int k = 0; k < arity; k++) {
+									fileDataStream.writeInt(tuple.get(k));
+								}
+								writeValue(serializerStrategy, fileDataStream, delta);
+							}
 						}
 						version = version.parent();
+						lastVersion++;
 					}
 				}
-				else{
-					throw new UnsupportedOperationException(
-							"Only Tuple keys are supported during serialization.");
-				}
-
 			}else {
 				throw new UnsupportedOperationException(
-						"Only MapTransaction versions are supported during serialization.");
+						"Only Tuple keys are supported during serialization.");
 			}
+
+		}else {
+			throw new UnsupportedOperationException(
+					"Only MapTransaction versions are supported during serialization.");
 		}
-
 	}
-
 	private <T> void writeValue(SerializerStrategy<T> strategy, DataOutputStream fileDataStream,
 								MapDelta<Tuple, T> delta) throws IOException {
 		if (delta.oldValue() == null){
@@ -87,53 +113,82 @@ public class Serializer {
 			strategy.writeValue(fileDataStream, delta.getNewValue());
 		}
 	}
-	public ArrayList<Version> read(ArrayList<File> files) throws IOException, ClassNotFoundException {
-		ArrayList<Version> versions = new ArrayList<>();
-		for (File file : files) {
-			FileInputStream fileIn = new FileInputStream(file);
-			DataInputStream fileDataInStream = new DataInputStream(fileIn);
+	public ArrayList<Version> read(File file) throws IOException, ClassNotFoundException {
 
-			int length = fileDataInStream.readInt();
-			byte[] valueTypeByte = new byte[length];
-			fileDataInStream.readFully(valueTypeByte);
-			String valueTypeString = new String(valueTypeByte, StandardCharsets.UTF_8);
-			Class<?> valueTypeClass = Class.forName(valueTypeString);
-			SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
+		FileInputStream fileIn = new FileInputStream(file);
+		DataInputStream fileDataInStream = new DataInputStream(fileIn);
 
-			int arity = fileDataInStream.readInt();
+		int length = fileDataInStream.readInt();
+		byte[] valueTypeByte = new byte[length];
+		fileDataInStream.readFully(valueTypeByte);
+		String valueTypeString = new String(valueTypeByte, StandardCharsets.UTF_8);
+		Class<?> valueTypeClass = Class.forName(valueTypeString);
+		SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
 
-			ArrayList<MapDelta<?,?>[]> deltaArrayList = new ArrayList<>();
+		int arity = fileDataInStream.readInt();
 
-			int depth = 0;
-			while (fileDataInStream.available() != 0) {
-				//Todo ez kell egyáltalán?
-				//	int id = fileDataInStream.readInt();
-				int numberOfDeltas = fileDataInStream.readInt();
-				var deltas = new MapDelta[numberOfDeltas];
-				for (int i = 0; i < numberOfDeltas; i++) {
-					int[] tupleArray = new int[arity];
-					for (int j = 0; j < arity; j++) {
-						tupleArray[j] = fileDataInStream.readInt();
-					}
-					Tuple tuple = Tuple.of(tupleArray);
-					deltas[i] = readValue(serializerStrategy, fileDataInStream, tuple);
+		HashMap<Long, Version> deSerializedVersionsTemp = new HashMap<>();
+
+		ArrayList<Long> rootNodes = new ArrayList<>();
+
+		ArrayList<Edge> edges = new ArrayList<>();
+		while (fileDataInStream.available() != 0) {
+			Long id = fileDataInStream.readLong();
+			long parentID = fileDataInStream.readLong();
+			int depth = fileDataInStream.readInt();
+			int numberOfDeltas = fileDataInStream.readInt();
+			var deltas = new MapDelta[numberOfDeltas];
+			for (int i = 0; i < numberOfDeltas; i++) {
+				int[] tupleArray = new int[arity];
+				for (int j = 0; j < arity; j++) {
+					tupleArray[j] = fileDataInStream.readInt();
 				}
-				deltaArrayList.add(deltas);
-				depth++;
+				Tuple tuple = Tuple.of(tupleArray);
+				deltas[i] = readValue(serializerStrategy, fileDataInStream, tuple);
 			}
 
-
-			MapTransaction<?,?> version = new MapTransaction(deltaArrayList.get(deltaArrayList.size() - 1), null,
-					0);
-			MapTransaction<?,?> parentVersion;
-			for (int i = 1; i < deltaArrayList.size(); i++) {
-				parentVersion = version;
-				version = new MapTransaction(deltaArrayList.get(deltaArrayList.size() - i - 1), parentVersion, i);
+			//TODO
+			Version v = new MapTransaction<>(deltas,null, depth);
+			deSerializedVersionsTemp.put(id,v);
+			if(parentID == -1){
+				rootNodes.add(id);
+			}else{
+				edges.add(new Edge(id, parentID));
 			}
-			versions.add(version);
+
+		}
+
+
+		ArrayList<Long> leafNodes = new ArrayList<>();
+		TreeSet<Long> parents = new TreeSet<>();
+
+		for (Edge value : edges) {
+			parents.add(value.parentID());
+		}
+
+		for(long i = 0; i < deSerializedVersionsTemp.size(); i++){
+			if(!parents.contains(i)) leafNodes.add(i);
+		}
+
+		for (Long rootID : rootNodes) {
+			Version rootVersion = deSerializedVersionsTemp.get(rootID);
+			deSerializedVersions.put(rootID, rootVersion);
+		}
+
+		for (Edge edge : edges) {
+			Version halfVersion = deSerializedVersionsTemp.get(edge.id());
+			MapTransaction<?, ?> parent = (MapTransaction<?, ?>) deSerializedVersions.get(edge.parentID());
+			Version completeVersion = new MapTransaction<>(((MapTransaction) halfVersion).deltas(), parent,
+					((MapTransaction<?, ?>) halfVersion).depth());
+			deSerializedVersions.put(edge.id(), completeVersion);
+		}
+		ArrayList<Version> versions = new ArrayList<>();
+		for (Long leaf : leafNodes) {
+			versions.add(deSerializedVersions.get(leaf));
 		}
 		return versions;
 	}
+
 
 	private <T> MapDelta<Tuple, T> readValue(SerializerStrategy<T> strategy, DataInputStream fileDataInStream,
 										 Tuple tuple) throws IOException {
@@ -143,8 +198,6 @@ public class Serializer {
 			oldValue = strategy.readValue(fileDataInStream);
 		}
 
-		//logger.info("\t\tReading oldValue: " + oldValue);
-
 		T newValue = null;
 		nullValue = fileDataInStream.readBoolean();
 
@@ -152,7 +205,6 @@ public class Serializer {
 			newValue = strategy.readValue(fileDataInStream);
 		}
 
-		//logger.info("\t\tReading newValue: " + newValue);
 		return new MapDelta<>(tuple, oldValue, newValue);
 	}
 }

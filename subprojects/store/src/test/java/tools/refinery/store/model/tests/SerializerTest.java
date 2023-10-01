@@ -50,9 +50,9 @@ public class SerializerTest {
 
 
 		try {
-			ArrayList<File> files = initializeAndGetFiles(2);
-			serializer.write(versions, files);
-			ArrayList<Version> versions2 = serializer.read(files);
+			File dataFile = initializeAndGetFile("data");
+			serializer.write(versions, dataFile);
+			ArrayList<Version> versions2 = serializer.read(dataFile);
 			assertTrue(compare(versions,versions2));
 		} catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
@@ -100,9 +100,9 @@ public class SerializerTest {
 		serializer.addStrategy(Integer.class, strategy2);
 
 		try {
-			ArrayList<File> files = initializeAndGetFiles(2);
-			serializer.write(versions, files);
-			ArrayList<Version> versions2 = serializer.read(files);
+			File file = initializeAndGetFile("data");
+			serializer.write(versions, file);
+			ArrayList<Version> versions2 = serializer.read(file);
 			assertTrue(compare(versions,versions2));
 		} catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
@@ -134,15 +134,11 @@ public class SerializerTest {
 		return true;
 	}
 
-	ArrayList<File> initializeAndGetFiles(int n) throws FileNotFoundException {
-		ArrayList<File> fileList = new ArrayList<>();
-		for(int i = 0; i < n; i++){
-			File file =  new File("D:\\0Egyetem\\Refinery\\szakdoga\\data"+i+".txt");
-			PrintWriter writer = new PrintWriter(file);
-			writer.print("");
-			writer.close();
-			fileList.add(file);
-		}
-		return fileList;
+	File initializeAndGetFile(String fileName) throws FileNotFoundException {
+		File file =  new File("D:\\0Egyetem\\Refinery\\szakdoga\\"+fileName+".txt");
+		PrintWriter writer = new PrintWriter(file);
+		writer.print("");
+		writer.close();
+		return file;
 	}
 }
