@@ -6,7 +6,6 @@ import tools.refinery.store.map.internal.delta.MapTransaction;
 import tools.refinery.store.tuple.Tuple;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,10 +17,6 @@ public class VersionListSerializer {
 	HashMap<Version, Long> serializedIDs;
 	HashMap<Long, Version> deSerializedVersions;
 	Long lastVersion;
-
-	public <T> void addStrategy(Class<T> valueType, SerializerStrategy<T> strategy){
-		serializerStrategyMap.put(valueType, strategy);
-	}
 
 	public <T> void setStrategy(SerializerStrategy<T> strategy){
 		serializerStrategy = strategy;
@@ -35,32 +30,18 @@ public class VersionListSerializer {
 		this.lastVersion = 0L;
 	}
 
-	public void write(List<Version> versions, File file, File leafNodes) throws IOException {
-		FileOutputStream fileFileStream= new FileOutputStream(file, true);
-		DataOutputStream fileDataStream = new DataOutputStream(fileFileStream);
-
-		FileOutputStream fileFileStreamLeafNodes = new FileOutputStream(leafNodes, true);
-		DataOutputStream fileDataStreamLeafNodes = new DataOutputStream(fileFileStreamLeafNodes);
-
+	public void write(List<Version> versions, DataOutputStream fileDataStream) throws IOException {
 		if (versions.get(0) instanceof MapTransaction<?, ?>) {
-		/*	Class<?> valueTypeClass =((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getNewValue().getClass();
-		//	SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
-			String valueTypeString = valueTypeClass.toString();
-			valueTypeString = valueTypeString.replace("class ", "");
-			byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
-			fileDataStream.writeInt(valueTypeByte.length);
-			fileDataStream.write(valueTypeByte);*/
-
 			if (((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getKey() instanceof Tuple){
 				int arity = ((Tuple) ((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getKey()).getSize();
 				fileDataStream.writeInt(arity);
+
 				for (Version value : versions) {
 					MapTransaction<?, ?> version = (MapTransaction<?, ?>) value;
-
 					while (version != null) {
-						//elozo folytatasa
-						fileDataStream.writeBoolean(true);
+						//next is a transaction
 						if (!serializedVersions.containsValue(version)) {
+							fileDataStream.writeBoolean(true);
 							//Writing out ID
 							serializedVersions.put(lastVersion, version);
 							serializedIDs.put(version, lastVersion);
@@ -94,10 +75,11 @@ public class VersionListSerializer {
 						version = version.parent();
 						lastVersion++;
 					}
-					fileDataStream.writeBoolean(false);
 				}
+				fileDataStream.writeBoolean(false);
+				fileDataStream.writeInt(versions.size());
 				for (Version version : versions) {
-					fileDataStreamLeafNodes.writeLong(serializedIDs.get(version));
+					fileDataStream.writeLong(serializedIDs.get(version));
 				}
 
 			}else {
@@ -127,28 +109,13 @@ public class VersionListSerializer {
 			strategy.writeValue(fileDataStream, delta.getNewValue());
 		}
 	}
-	public ArrayList<Version> read(File file, File leafNodes) throws IOException, ClassNotFoundException {
-
-		FileInputStream fileIn = new FileInputStream(file);
-		DataInputStream fileDataInStream = new DataInputStream(fileIn);
-
-		FileInputStream fileInLeafNodes = new FileInputStream(leafNodes);
-		DataInputStream fileDataInStreamLeafNodes = new DataInputStream(fileInLeafNodes);
-
-	/*	int length = fileDataInStream.readInt();
-		byte[] valueTypeByte = new byte[length];
-		fileDataInStream.readFully(valueTypeByte);
-		String valueTypeString = new String(valueTypeByte, StandardCharsets.UTF_8);
-		Class<?> valueTypeClass = Class.forName(valueTypeString);
-	 	SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);*/
-
+	public ArrayList<Version> read(DataInputStream fileDataInStream) throws IOException, ClassNotFoundException {
 		int arity = fileDataInStream.readInt();
 
 		HashMap<Long, Version> deSerializedVersionsTemp = new HashMap<>();
-
 		ArrayList<Long> rootNodes = new ArrayList<>();
-
 		ArrayList<Edge> edges = new ArrayList<>();
+
 		while (fileDataInStream.readBoolean()) {
 			Long id = fileDataInStream.readLong();
 			long parentID = fileDataInStream.readLong();
@@ -171,23 +138,15 @@ public class VersionListSerializer {
 			}else{
 				edges.add(new Edge(id, parentID));
 			}
-
 		}
 		ArrayList<Long> leafNodesArray = new ArrayList<>();
-		/*TreeSet<Long> parents = new TreeSet<>();
 
-		for (Edge value : edges) {
-			parents.add(value.parentID());
-		}*/
+		int numberOfLeafNodes = fileDataInStream.readInt();
 
-		while (fileDataInStreamLeafNodes.available() != 0){
-			Long id = fileDataInStreamLeafNodes.readLong();
+		for(int i = 0; i < numberOfLeafNodes; i++){
+			Long id = fileDataInStream.readLong();
 			leafNodesArray.add(id);
 		}
-
-		/*for(long i = 0; i < deSerializedVersionsTemp.size(); i++){
-			if(!parents.contains(i)) leafNodes.add(i);
-		}*/
 
 		for (Long rootID : rootNodes) {
 			Version rootVersion = deSerializedVersionsTemp.get(rootID);

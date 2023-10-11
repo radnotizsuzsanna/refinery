@@ -4,8 +4,7 @@ import tools.refinery.store.map.Version;
 import tools.refinery.store.model.internal.ModelVersion;
 import tools.refinery.store.representation.Symbol;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,7 +16,10 @@ public class ModelSerializer {
 	public void addSerializeStrategy(Class type,  SerializerStrategy strategy){
 		serializerStrategyMap.put(type, strategy);
 	}
-	public void write(List<ModelVersion> modelVersions, ModelStore modelStore, File dataFile, File leafNodesFile) throws IOException {
+	public void write(List<ModelVersion> modelVersions, ModelStore modelStore, File dataFile) throws IOException {
+
+		FileOutputStream fileFileStream= new FileOutputStream(dataFile, true);
+		DataOutputStream fileDataStream = new DataOutputStream(fileFileStream);
 		var symbols = modelStore.getSymbols();
 		ArrayList<Version>[] versionListArray = new ArrayList[symbols.size()];
 		for (int i = 0; i < symbols.size(); i++) {
@@ -31,7 +33,6 @@ public class ModelSerializer {
 			}
 		}
 
-		//TODO mindig ugyanaz lesz a sorrend?
 		var symbolList = symbols.stream().toList();
 		for(int i = 0; i < symbolList.size(); i++){
 			Symbol symbol = (Symbol) symbolList.get(i);
@@ -41,12 +42,16 @@ public class ModelSerializer {
 			//	serializer.addStrategy(valueType, serializerStrategy);
 			serializer.setStrategy(serializerStrategy);
 			ArrayList<Version> versionList = versionListArray[i];
-			serializer.write(versionList, dataFile, leafNodesFile);
+			serializer.write(versionList, fileDataStream);
 		}
 	}
 
-	public List<ModelVersion> read(ModelStore modelStore, File dataFile, File leafNodesFile) throws IOException,
+	public List<ModelVersion> read(ModelStore modelStore, File dataFile) throws IOException,
 			ClassNotFoundException {
+
+		FileInputStream fileIn = new FileInputStream(dataFile);
+		DataInputStream fileDataInStream = new DataInputStream(fileIn);
+
 		List<ModelVersion> modelVersions = new ArrayList<>();
 		var symbols = modelStore.getSymbols();
 		ArrayList<Version>[] versionListArray = new ArrayList[symbols.size()];
@@ -57,10 +62,9 @@ public class ModelSerializer {
 			var valueType = symbol.valueType();
 			SerializerStrategy serializerStrategy = serializerStrategyMap.get(valueType);
 			VersionListSerializer serializer = new VersionListSerializer();
-			//	serializer.addStrategy(valueType, serializerStrategy);
 			serializer.setStrategy(serializerStrategy);
 
-			ArrayList<Version> versions = serializer.read(dataFile, leafNodesFile);
+			ArrayList<Version> versions = serializer.read(fileDataInStream);
 			versionListArray[i] = versions;
 		}
 

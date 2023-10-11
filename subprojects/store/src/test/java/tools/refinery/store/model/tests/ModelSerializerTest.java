@@ -1,7 +1,6 @@
 package tools.refinery.store.model.tests;
 
 import org.junit.jupiter.api.Test;
-import tools.refinery.store.map.Version;
 import tools.refinery.store.map.internal.delta.MapDelta;
 import tools.refinery.store.map.internal.delta.MapTransaction;
 import tools.refinery.store.model.*;
@@ -13,8 +12,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -50,9 +47,8 @@ public class ModelSerializerTest {
 
 			try {
 				File dataFile = initializeAndGetFile("data");
-				File leafNodesFIle = initializeAndGetFile("leafNodes");
-				modelSerializer.write(modelVersions, model.getStore(), dataFile, leafNodesFIle);
-				List<ModelVersion>  modelVersions2 = modelSerializer.read(model.getStore(), dataFile, leafNodesFIle);
+				modelSerializer.write(modelVersions, model.getStore(), dataFile);
+				List<ModelVersion>  modelVersions2 = modelSerializer.read(model.getStore(), dataFile);
 				compareModels(modelVersions, modelVersions2, model.getStore());
 			} catch (IOException | ClassNotFoundException e) {
 				throw new RuntimeException(e);
@@ -74,7 +70,6 @@ public class ModelSerializerTest {
 				for(int j = 0; j < symbols.size(); j++){
 					MapTransaction version1 = (MapTransaction) ModelVersion.getInternalVersion(modelVersion1,j);
 					MapTransaction version2 = (MapTransaction) ModelVersion.getInternalVersion(modelVersion2,j);
-					//TODO csak az egyik null
 					while (version1 != null || version2 != null) {
 						if(version1 == null || version2 == null) return false;
 						MapDelta[] deltas1 = version1.deltas();

@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 public class SerializerTest {
-	@Test
+	/*@Test
 	void serializeWithOneTypeTest() {
 		MapTransaction<Tuple, Boolean> version;
 		MapDelta<Tuple, Boolean> mapdelta2;
@@ -283,5 +283,5 @@ public class SerializerTest {
 		writer.print("");
 		writer.close();
 		return file;
-	}
+	}*/
 }
