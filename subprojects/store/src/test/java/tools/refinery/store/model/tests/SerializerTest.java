@@ -8,7 +8,6 @@ import tools.refinery.store.map.internal.delta.MapDelta;
 import tools.refinery.store.map.internal.delta.MapTransaction;
 import tools.refinery.store.map.internal.delta.VersionedMapStoreDeltaImpl;
 import tools.refinery.store.model.*;
-import tools.refinery.store.representation.Symbol;
 import tools.refinery.store.representation.TruthValue;
 import tools.refinery.store.tuple.Tuple;
 
@@ -48,11 +47,11 @@ public class SerializerTest {
 		version = new MapTransaction<>(mapDeltas, parent, 1);
 		versions.add(version);
 
-		Serializer serializer = new Serializer();
+		VersionListSerializer serializer = new VersionListSerializer();
 		SerializerStrategy<Boolean> strategy = new TupleBooleanSerializer();
 		serializer.addStrategy(Boolean.class, strategy);
 
-		Serializer serializer2 = new Serializer();
+		VersionListSerializer serializer2 = new VersionListSerializer();
 		SerializerStrategy<Boolean> strategy2 = new TupleBooleanSerializer();
 		serializer2.addStrategy(Boolean.class, strategy2);
 
@@ -102,7 +101,7 @@ public class SerializerTest {
 		version2 = new MapTransaction<>(mapDeltas2, parent2, 1);
 		versions.add(version2);
 
-		Serializer serializer = new Serializer();
+		VersionListSerializer serializer = new VersionListSerializer();
 		SerializerStrategy<Boolean> strategy = new TupleBooleanSerializer();
 		serializer.addStrategy(Boolean.class, strategy);
 		SerializerStrategy<Integer> strategy2 = new TupleIntegerSerializer();
@@ -122,7 +121,7 @@ public class SerializerTest {
 
 
 	void runSaveAndReloadTest(List<Version> versions) {
-		Serializer serializer = new Serializer();
+		VersionListSerializer serializer = new VersionListSerializer();
 		SerializerStrategy<Boolean> strategyBoolean = new TupleBooleanSerializer();
 		serializer.addStrategy(Boolean.class, strategyBoolean);
 		SerializerStrategy<Integer> strategyInteger = new TupleIntegerSerializer();

@@ -22,11 +22,11 @@ public class ModelSerializerTest {
 	static Symbol friend = new Symbol("friend", 2, Boolean.class, false);
 	static Symbol age = new Symbol("age", 1, Integer.class, null);
 
-	HashMap<Class<?>, SerializerStrategy<?>> serializerStrategyMap = new HashMap<>();
 	@Test
 	void simpleModelSerializerTest() {
-		serializerStrategyMap.put(Boolean.class, new TupleBooleanSerializer());
-		serializerStrategyMap.put(Integer.class, new TupleIntegerSerializer());
+		ModelSerializer modelSerializer = new ModelSerializer();
+		modelSerializer.addSerializeStrategy(Boolean.class, new TupleBooleanSerializer());
+		modelSerializer.addSerializeStrategy(Integer.class, new TupleIntegerSerializer());
 
 		var store = ModelStore.builder()
 				.symbols(friend, age)
@@ -51,79 +51,20 @@ public class ModelSerializerTest {
 			try {
 				File dataFile = initializeAndGetFile("data");
 				File leafNodesFIle = initializeAndGetFile("leafNodes");
-				write(modelVersions, model.getStore(), dataFile, leafNodesFIle);
-				List<ModelVersion>  modelVersions2 = read(model.getStore(), dataFile, leafNodesFIle);
+				modelSerializer.write(modelVersions, model.getStore(), dataFile, leafNodesFIle);
+				List<ModelVersion>  modelVersions2 = modelSerializer.read(model.getStore(), dataFile, leafNodesFIle);
 				compareModels(modelVersions, modelVersions2, model.getStore());
 			} catch (IOException | ClassNotFoundException e) {
 				throw new RuntimeException(e);
 			}
 		}
-
-
-
-
 	}
 
-	void write(List<ModelVersion> modelVersions, ModelStore modelStore, File dataFile, File leafNodesFile) throws IOException {
-		var symbols = modelStore.getSymbols();
-		ArrayList<Version>[] versionListArray = new ArrayList[symbols.size()];
-		for (int i = 0; i < symbols.size(); i++) {
-			versionListArray[i] = new ArrayList<>();
-		}
-		for(int i = 0; i < modelVersions.size(); i++){
-			ModelVersion modelVersion = modelVersions.get(i);
-			for(int j = 0; j < symbols.size(); j++){
-				Version version = ModelVersion.getInternalVersion(modelVersion,j);
-				versionListArray[j].add(version);
-			}
-		}
 
-		//TODO mindig ugyanaz lesz a sorrend?
-		var symbolList = symbols.stream().toList();
-		for(int i = 0; i < symbolList.size(); i++){
-			Symbol symbol = (Symbol) symbolList.get(i);
-			var valueType = symbol.valueType();
-			SerializerStrategy serializerStrategy = serializerStrategyMap.get(valueType);
-			Serializer serializer = new Serializer();
-		//	serializer.addStrategy(valueType, serializerStrategy);
-			serializer.setStrategy(serializerStrategy);
-			ArrayList<Version> versionList = versionListArray[i];
-			serializer.write(versionList, dataFile, leafNodesFile);
-		}
-	}
 
-	List<ModelVersion> read(ModelStore modelStore, File dataFile, File leafNodesFile) throws IOException, ClassNotFoundException {
-		List<ModelVersion> modelVersions = new ArrayList<>();
-		var symbols = modelStore.getSymbols();
-		ArrayList<Version>[] versionListArray = new ArrayList[symbols.size()];
-
-		var symbolList = symbols.stream().toList();
-		for(int i = 0; i < symbolList.size(); i++){
-			Symbol symbol = (Symbol) symbolList.get(i);
-			var valueType = symbol.valueType();
-			SerializerStrategy serializerStrategy = serializerStrategyMap.get(valueType);
-			Serializer serializer = new Serializer();
-			//	serializer.addStrategy(valueType, serializerStrategy);
-			serializer.setStrategy(serializerStrategy);
-
-			ArrayList<Version> versions = serializer.read(dataFile, leafNodesFile);
-			versionListArray[i] = versions;
-		}
-
-		Version[] versionArray;
-		for(int i = 0; i < versionListArray[0].size(); i++){
-			versionArray = new Version[symbolList.size()];
-			for(int j = 0; j < symbolList.size(); j++){
-				versionArray[j] = versionListArray[j].get(i);
-			}
-			ModelVersion modelVersion = new ModelVersion(versionArray);
-			modelVersions.add(modelVersion);
-		}
-		return modelVersions;
-	}
-
-	//TODO ide is kell a modellStore?
-	Boolean compareModels(List<ModelVersion>  modelVersions1, List<ModelVersion>  modelVersions2, ModelStore modelStore){
+	//TODO szöveggel térjen vissza
+	boolean compareModels(List<ModelVersion>  modelVersions1, List<ModelVersion>  modelVersions2,
+						  ModelStore modelStore){
 		var symbols = modelStore.getSymbols();
 		if (modelVersions1.size() != modelVersions2.size()) return false;
 		else{
@@ -133,7 +74,9 @@ public class ModelSerializerTest {
 				for(int j = 0; j < symbols.size(); j++){
 					MapTransaction version1 = (MapTransaction) ModelVersion.getInternalVersion(modelVersion1,j);
 					MapTransaction version2 = (MapTransaction) ModelVersion.getInternalVersion(modelVersion2,j);
-					while (version1 != null && version2 != null) {
+					//TODO csak az egyik null
+					while (version1 != null || version2 != null) {
+						if(version1 == null || version2 == null) return false;
 						MapDelta[] deltas1 = version1.deltas();
 						MapDelta[] deltas2 = version2.deltas();
 						if (deltas1.length != deltas2.length) return false;

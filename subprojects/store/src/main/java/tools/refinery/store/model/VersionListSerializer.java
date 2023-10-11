@@ -10,9 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.TreeSet;
 
-public class Serializer {
+public class VersionListSerializer {
 	HashMap<Class<?>, SerializerStrategy<?>> serializerStrategyMap;
 	SerializerStrategy serializerStrategy;
 	HashMap<Long, Version> serializedVersions;
@@ -28,7 +27,7 @@ public class Serializer {
 		serializerStrategy = strategy;
 	}
 
-	public Serializer(){
+	public VersionListSerializer(){
 		this.serializerStrategyMap = new HashMap<>();
 		this.serializedVersions = new HashMap<>();
 		this.serializedIDs = new HashMap<>();
@@ -44,13 +43,13 @@ public class Serializer {
 		DataOutputStream fileDataStreamLeafNodes = new DataOutputStream(fileFileStreamLeafNodes);
 
 		if (versions.get(0) instanceof MapTransaction<?, ?>) {
-			Class<?> valueTypeClass =((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getNewValue().getClass();
+		/*	Class<?> valueTypeClass =((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getNewValue().getClass();
 		//	SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
 			String valueTypeString = valueTypeClass.toString();
 			valueTypeString = valueTypeString.replace("class ", "");
 			byte[] valueTypeByte = valueTypeString.getBytes(StandardCharsets.UTF_8);
 			fileDataStream.writeInt(valueTypeByte.length);
-			fileDataStream.write(valueTypeByte);
+			fileDataStream.write(valueTypeByte);*/
 
 			if (((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getKey() instanceof Tuple){
 				int arity = ((Tuple) ((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getKey()).getSize();
@@ -136,12 +135,12 @@ public class Serializer {
 		FileInputStream fileInLeafNodes = new FileInputStream(leafNodes);
 		DataInputStream fileDataInStreamLeafNodes = new DataInputStream(fileInLeafNodes);
 
-		int length = fileDataInStream.readInt();
+	/*	int length = fileDataInStream.readInt();
 		byte[] valueTypeByte = new byte[length];
 		fileDataInStream.readFully(valueTypeByte);
 		String valueTypeString = new String(valueTypeByte, StandardCharsets.UTF_8);
 		Class<?> valueTypeClass = Class.forName(valueTypeString);
-	//	SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);
+	 	SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueTypeClass);*/
 
 		int arity = fileDataInStream.readInt();
 
