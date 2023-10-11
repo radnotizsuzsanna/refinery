@@ -16,17 +16,28 @@ public class ModelSerializer {
 	public void addSerializeStrategy(Class type,  SerializerStrategy strategy){
 		serializerStrategyMap.put(type, strategy);
 	}
-	public void write(List<ModelVersion> modelVersions, ModelStore modelStore, File dataFile) throws IOException {
-
+	public void write(List<ModelVersion> modelVersions, ModelStore modelStore, File dataFile,
+					  List<double[]> doubleArrayList, long[] longArray) throws IOException {
 		FileOutputStream fileFileStream= new FileOutputStream(dataFile, true);
 		DataOutputStream fileDataStream = new DataOutputStream(fileFileStream);
+
 		var symbols = modelStore.getSymbols();
 		ArrayList<Version>[] versionListArray = new ArrayList[symbols.size()];
 		for (int i = 0; i < symbols.size(); i++) {
 			versionListArray[i] = new ArrayList<>();
 		}
+
+		//hány double tömb lesz kiírva
+		fileDataStream.writeInt(modelVersions.size());
+		fileDataStream.writeInt(doubleArrayList.get(0).length);
 		for(int i = 0; i < modelVersions.size(); i++){
 			ModelVersion modelVersion = modelVersions.get(i);
+			fileDataStream.writeLong(longArray[i]);
+			//ide írom hogy mennyire jó a modell (mert modellverziónként van, nem symbolonként)
+			double[] doubleArray = doubleArrayList.get(i);
+			for(int j = 0; j < doubleArray.length; j++){
+				fileDataStream.writeDouble(doubleArray[j]);
+			}
 			for(int j = 0; j < symbols.size(); j++){
 				Version version = ModelVersion.getInternalVersion(modelVersion,j);
 				versionListArray[j].add(version);
@@ -54,6 +65,20 @@ public class ModelSerializer {
 		List<ModelVersion> modelVersions = new ArrayList<>();
 		var symbols = modelStore.getSymbols();
 		ArrayList<Version>[] versionListArray = new ArrayList[symbols.size()];
+
+		int numberOfModelVersion = fileDataInStream.readInt();
+		int doubleArraysLength = fileDataInStream.readInt();
+
+		List<double[]> doubleArrayList = new ArrayList<>();
+		long[] longArray = new long[numberOfModelVersion];
+		for(int i = 0; i < numberOfModelVersion; i++){
+			longArray[i] = fileDataInStream.readLong();
+			double[] doubleArray = new double[doubleArraysLength];
+			for(int j = 0; j < doubleArraysLength; j++){
+				doubleArray[j] = fileDataInStream.readDouble();
+			}
+			doubleArrayList.add(doubleArray);
+		}
 
 		var symbolList = symbols.stream().toList();
 		for(int i = 0; i < symbolList.size(); i++){

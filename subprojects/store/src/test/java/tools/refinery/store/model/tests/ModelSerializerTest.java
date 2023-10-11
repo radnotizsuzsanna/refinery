@@ -1,6 +1,7 @@
 package tools.refinery.store.model.tests;
 
 import org.junit.jupiter.api.Test;
+import tools.refinery.store.map.Version;
 import tools.refinery.store.map.internal.delta.MapDelta;
 import tools.refinery.store.map.internal.delta.MapTransaction;
 import tools.refinery.store.model.*;
@@ -12,6 +13,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -44,12 +46,18 @@ public class ModelSerializerTest {
 
 		var version2 = model.commit();
 
+		double[] doubles1 = new double[]{1.2, 3.4};
+		double[] doubles2 = new double[]{5.6, 7.8};
+		List<double[]> doubleArrayList = List.of(doubles1, doubles2);
+
+		long[] longArray = new long[]{(long) 23424, (long) 434235};
+
 		if(version1 instanceof ModelVersion && version2 instanceof ModelVersion) {
 			List<ModelVersion> modelVersions = List.of((ModelVersion) version1, (ModelVersion) version2);
 
 			try {
 				File dataFile = initializeAndGetFile("data");
-				modelSerializer.write(modelVersions, model.getStore(), dataFile);
+				modelSerializer.write(modelVersions, model.getStore(), dataFile, doubleArrayList, longArray);
 				List<ModelVersion>  modelVersions2 = modelSerializer.read(model.getStore(), dataFile);
 				assertEquals(compareModels(modelVersions, modelVersions2, model.getStore()), "Models are the same.");
 			} catch (IOException | ClassNotFoundException e) {
