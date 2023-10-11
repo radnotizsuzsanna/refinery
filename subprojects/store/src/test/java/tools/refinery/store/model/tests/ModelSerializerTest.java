@@ -15,6 +15,8 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Objects;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class ModelSerializerTest {
 	static Symbol friend = new Symbol("friend", 2, Boolean.class, false);
 	static Symbol age = new Symbol("age", 1, Integer.class, null);
@@ -49,20 +51,17 @@ public class ModelSerializerTest {
 				File dataFile = initializeAndGetFile("data");
 				modelSerializer.write(modelVersions, model.getStore(), dataFile);
 				List<ModelVersion>  modelVersions2 = modelSerializer.read(model.getStore(), dataFile);
-				compareModels(modelVersions, modelVersions2, model.getStore());
+				assertEquals(compareModels(modelVersions, modelVersions2, model.getStore()), "Models are the same.");
 			} catch (IOException | ClassNotFoundException e) {
 				throw new RuntimeException(e);
 			}
 		}
 	}
 
-
-
-	//TODO szöveggel térjen vissza
-	boolean compareModels(List<ModelVersion>  modelVersions1, List<ModelVersion>  modelVersions2,
+	String compareModels(List<ModelVersion>  modelVersions1, List<ModelVersion>  modelVersions2,
 						  ModelStore modelStore){
 		var symbols = modelStore.getSymbols();
-		if (modelVersions1.size() != modelVersions2.size()) return false;
+		if (modelVersions1.size() != modelVersions2.size()) return "The size of the models are different.";
 		else{
 			for(int i = 0; i < modelVersions1.size(); i++){
 				ModelVersion modelVersion1 = modelVersions1.get(i);
@@ -71,15 +70,19 @@ public class ModelSerializerTest {
 					MapTransaction version1 = (MapTransaction) ModelVersion.getInternalVersion(modelVersion1,j);
 					MapTransaction version2 = (MapTransaction) ModelVersion.getInternalVersion(modelVersion2,j);
 					while (version1 != null || version2 != null) {
-						if(version1 == null || version2 == null) return false;
+						if(version1 == null || version2 == null) return "Versions don't have the same number of " +
+								"ancestors.";
 						MapDelta[] deltas1 = version1.deltas();
 						MapDelta[] deltas2 = version2.deltas();
-						if (deltas1.length != deltas2.length) return false;
+						if (deltas1.length != deltas2.length) return "Versions have different number of deltas.";
 						else {
 							for (int k = 0; k < deltas1.length; k++) {
-								if (!Objects.equals(deltas1[k].key(), deltas2[k].key())) return false;
-								else if (!Objects.equals(deltas1[k].oldValue(),deltas2[k].oldValue())) return false;
-								else if (!Objects.equals(deltas1[k].newValue(), deltas2[k].newValue())) return false;
+								if (!Objects.equals(deltas1[k].key(), deltas2[k].key())) return "Deltas have " +
+										"different keys";
+								else if (!Objects.equals(deltas1[k].oldValue(),deltas2[k].oldValue())) return "Deltas" +
+										" have different old values.";
+								else if (!Objects.equals(deltas1[k].newValue(), deltas2[k].newValue())) return "Deltas" +
+										" have different new values.";
 							}
 						}
 						version1 = version1.parent();
@@ -88,7 +91,7 @@ public class ModelSerializerTest {
 				}
 			}
 		}
-		return true;
+		return "Models are the same.";
 	}
 
 	File initializeAndGetFile(String fileName) throws FileNotFoundException {

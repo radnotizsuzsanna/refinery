@@ -39,7 +39,6 @@ public class ModelSerializer {
 			var valueType = symbol.valueType();
 			SerializerStrategy serializerStrategy = serializerStrategyMap.get(valueType);
 			VersionListSerializer serializer = new VersionListSerializer();
-			//	serializer.addStrategy(valueType, serializerStrategy);
 			serializer.setStrategy(serializerStrategy);
 			ArrayList<Version> versionList = versionListArray[i];
 			serializer.write(versionList, fileDataStream);
