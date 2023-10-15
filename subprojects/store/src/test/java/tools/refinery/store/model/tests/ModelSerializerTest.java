@@ -60,7 +60,7 @@ public class ModelSerializerTest {
 				modelSerializer.write(modelVersions, model.getStore(), dataFile, doubleArrayList, longArray);
 				List<ModelVersion>  modelVersions2 = modelSerializer.read(model.getStore(), dataFile);
 				assertEquals(compareModels(modelVersions, modelVersions2, model.getStore()), "Models are the same.");
-			} catch (IOException | ClassNotFoundException e) {
+			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
 		}
