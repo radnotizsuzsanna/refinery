@@ -124,7 +124,7 @@ public class ModelSerializer {
 		//Creating the array for the hashes of the model versions
 		long[] longArray = new long[numberOfModelVersion];
 
-		//Iterating through the model serialized model versions
+		//Iterating through the serialized model versions
 		for(int i = 0; i < numberOfModelVersion; i++){
 			//Reading the hash of the model version
 			longArray[i] = fileDataInStream.readLong();
