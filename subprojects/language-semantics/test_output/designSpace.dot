@@ -1,0 +1,41 @@
+digraph designSpace {
+nodesep=0
+ranksep=5
+node[
+	style=filled
+	fillcolor=white
+]
+0 [label = "0 (ObjectiveValue1[value0=13.0])"
+URL="./0.svg"]
+1 [label = "1 (ObjectiveValue1[value0=13.0])"
+URL="./1.svg"]
+0 -> 1 [label="0: fire: 6, 0"]
+2 [label = "2 (ObjectiveValue1[value0=13.0])"
+URL="./2.svg"]
+1 -> 2 [label="1: fire: 6, 0"]
+3 [label = "3 (ObjectiveValue1[value0=11.0])"
+URL="./3.svg"]
+2 -> 3 [label="2: fire: 0, 0"]
+4 [label = "4 (ObjectiveValue1[value0=11.0])"
+URL="./4.svg"]
+3 -> 4 [label="3: fire: 6, 0"]
+5 [label = "5 (ObjectiveValue1[value0=7.0])"
+URL="./5.svg"]
+4 -> 5 [label="4: fire: 0, 0"]
+6 [label = "6 (ObjectiveValue1[value0=7.0])"
+URL="./6.svg"]
+5 -> 6 [label="5: fire: 6, 1"]
+7 [label = "7 (ObjectiveValue1[value0=5.0])"
+URL="./7.svg"]
+6 -> 7 [label="6: fire: 4, 0"]
+8 [label = "8 (ObjectiveValue1[value0=3.0])"
+URL="./8.svg"]
+7 -> 8 [label="7: fire: 4, 1"]
+9 [label = "9 (ObjectiveValue1[value0=3.0])"
+URL="./9.svg"]
+8 -> 9 [label="8: fire: 5, 11"]
+10 [label = "10 (ObjectiveValue1[value0=1.0])"
+URL="./10.svg"]
+10 [peripheries = 2]
+9 -> 10 [label="9: fire: 4, 0"]
+}

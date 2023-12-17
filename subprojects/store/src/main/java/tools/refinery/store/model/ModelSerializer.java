@@ -17,6 +17,10 @@ public class ModelSerializer {
 	//Map of serializer strategies for different value types
 	HashMap<Class<?>, SerializerStrategy<?>> serializerStrategyMap = new HashMap<>();
 
+	File dataFileC;
+
+	HashMap<String, File> relationFilesC = new HashMap<>();
+
 	/**
 	 * Add serializer strategy to the strategy map
 	 * @param type Value type
@@ -26,6 +30,14 @@ public class ModelSerializer {
 		serializerStrategyMap.put(type, strategy);
 	}
 
+	public void setDataFile(File f){
+		dataFileC = f;
+	}
+
+	public void putInRelationFiles(String s, File f){
+		relationFilesC.put(s, f);
+	}
+
 	/**
 	 * Serializes the model versions
 	 * @param modelVersions The list of model versions to serialize
@@ -33,14 +45,20 @@ public class ModelSerializer {
 	 * @param dataFile The file where the serializer writes the data
 	 * @param doubleArrayList List of double arrays containing additional information about model versions and have
 	 *                           to be serialized
-	 * @param longArray Hash value of the model version
+	 * @param intArray Hash value of the model version
 	 * @throws IOException Exception that can occur during writing data into the file
 	 */
-	public void write(List<ModelVersion> modelVersions, ModelStore modelStore, File dataFile,
-					  List<double[]> doubleArrayList, long[] longArray) throws IOException {
+	public void write(List<Version> modelVersions, ModelStore modelStore, File dataFile,
+					  HashMap<String, File> relationFiles,
+					  List<double[]> doubleArrayList, int[] intArray) throws IOException {
+
+		//TODO choose
 		//Creating the data stream
-		FileOutputStream fileFileStream= new FileOutputStream(dataFile, true);
+		FileOutputStream fileFileStream= new FileOutputStream(dataFileC, true);
 		DataOutputStream fileDataStream = new DataOutputStream(fileFileStream);
+
+		//OutputStream out = new ByteArrayOutputStream();
+		//DataOutputStream fileDataStream = new DataOutputStream(out);
 
 		//Initializing the arraylist for the versions
 		var symbols = modelStore.getSymbols();
@@ -57,10 +75,10 @@ public class ModelSerializer {
 
 		//Iterating through the list of model versions
 		for(int i = 0; i < modelVersions.size(); i++){
-			ModelVersion modelVersion = modelVersions.get(i);
+			ModelVersion modelVersion = (ModelVersion) modelVersions.get(i);
 
 			//Writing out the hash of the model version
-			fileDataStream.writeLong(longArray[i]);
+			fileDataStream.writeInt(intArray[i]);
 
 			//Writing out the double array of the model version
 			double[] doubleArray = doubleArrayList.get(i);
@@ -83,15 +101,22 @@ public class ModelSerializer {
 			//Creating the serializer strategy for the value type of the symbol
 			Symbol<?> symbol = (Symbol<?>) symbolList.get(i);
 			Class<?> valueType = symbol.valueType();
+			//System.out.println("Valuetype: " + valueType);
 			SerializerStrategy<?> serializerStrategy = serializerStrategyMap.get(valueType);
 
 			//Creating and initializing the version list serializer
 			VersionListSerializer versionListSerializer = new VersionListSerializer();
 			versionListSerializer.setStrategy(serializerStrategy);
 
+			FileOutputStream fileFileStreamRelation = new FileOutputStream(relationFilesC.get(symbol.name()), true);
+			DataOutputStream fileDataStreamRelation = new DataOutputStream(fileFileStreamRelation);
+
+			//OutputStream outRelation = new ByteArrayOutputStream();
+			//DataOutputStream fileDataStreamRelation = new DataOutputStream(outRelation);
+
 			//Writing out the version list
 			ArrayList<Version> versionList = versionArrayList[i];
-			versionListSerializer.write(versionList, fileDataStream);
+			versionListSerializer.write(versionList, fileDataStreamRelation);
 		}
 	}
 
@@ -102,10 +127,11 @@ public class ModelSerializer {
 	 * @return The list of model versions from the file
 	 * @throws IOException Exception that can occur during reading data from the file
 	 */
-	public List<ModelVersion> read(ModelStore modelStore, File dataFile) throws IOException {
+	public List<ModelVersion> read(ModelStore modelStore, File dataFile, HashMap<String, File> relationFiles) throws IOException {
+
 
 		//Creating the data stream
-		FileInputStream fileIn = new FileInputStream(dataFile);
+		FileInputStream fileIn = new FileInputStream(dataFileC);
 		DataInputStream fileDataInStream = new DataInputStream(fileIn);
 
 		//Initializing the arraylist for the versions
@@ -122,12 +148,12 @@ public class ModelSerializer {
 		List<double[]> doubleArrayList = new ArrayList<>();
 
 		//Creating the array for the hashes of the model versions
-		long[] longArray = new long[numberOfModelVersion];
+		int[] longArray = new int[numberOfModelVersion];
 
 		//Iterating through the serialized model versions
 		for(int i = 0; i < numberOfModelVersion; i++){
 			//Reading the hash of the model version
-			longArray[i] = fileDataInStream.readLong();
+			longArray[i] = fileDataInStream.readInt();
 
 			//Reading the double values of the model version
 			double[] doubleArray = new double[doubleArraysLength];
@@ -150,8 +176,14 @@ public class ModelSerializer {
 			VersionListSerializer serializer = new VersionListSerializer();
 			serializer.setStrategy(serializerStrategy);
 
+			//if(serializerStrategy == null) System.out.println("Nem tudom beolvasni ezt a tipust: " + valueType);
+			//else System.out.println("Be tudom olvasni ezt a tipust: " + valueType);
+
 			//Reading the version list
-			ArrayList<Version> versions = serializer.read(fileDataInStream);
+			FileInputStream fileFileStreamRelation = new FileInputStream(relationFilesC.get(symbol.name()));
+			DataInputStream fileDataStreamRelation = new DataInputStream(fileFileStreamRelation);
+
+			ArrayList<Version> versions = serializer.read(fileDataStreamRelation);
 			versionArrayList[i] = versions;
 		}
 

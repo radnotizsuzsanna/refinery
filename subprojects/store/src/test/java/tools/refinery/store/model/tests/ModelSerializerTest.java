@@ -9,11 +9,9 @@ import tools.refinery.store.model.internal.ModelVersion;
 import tools.refinery.store.representation.Symbol;
 import tools.refinery.store.tuple.Tuple;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -23,6 +21,43 @@ public class ModelSerializerTest {
 	static Symbol friend = new Symbol("friend", 2, Boolean.class, false);
 	static Symbol age = new Symbol("age", 1, Integer.class, null);
 
+
+
+	@Test
+	void booleanArrayModelSerializerTest() {
+		SerializerStrategy<Boolean[]> serializerStrategy = new TupleBooleanArraySerializer();
+		Boolean[] array1 = {true, false, true, true};
+		File dataFile;
+
+		try {
+			dataFile = initializeAndGetFile("data");
+			FileOutputStream fileOut = new FileOutputStream(dataFile);
+			DataOutputStream fileDataOutStream = new DataOutputStream(fileOut);
+			serializerStrategy.writeValue(fileDataOutStream, array1);
+
+			FileInputStream fileIn = new FileInputStream(dataFile);
+			DataInputStream fileDataInStream = new DataInputStream(fileIn);
+			Boolean[] array2 = serializerStrategy.readValue(fileDataInStream);
+			assertEquals("The arrays are the same", compareBooleanArrays(array1, array2));
+
+
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private String compareBooleanArrays(Boolean[] array1, Boolean[] array2){
+		if(array1.length == array2.length) {
+			for (int i = 0; i < array1.length; i++){
+				if(array2[i] != array1[i]) return "The " + i + ". values of the arrays are NOT the same: " + array1[i] + " " + array2[i];
+			}
+		}else {
+			 return "The lengths of the arrays are NOT the same";
+		}
+		return "The arrays are the same";
+	}
 	@Test
 	void simpleModelSerializerTest() {
 		ModelSerializer modelSerializer = new ModelSerializer();
@@ -50,15 +85,27 @@ public class ModelSerializerTest {
 		double[] doubles2 = new double[]{5.6, 7.8};
 		List<double[]> doubleArrayList = List.of(doubles1, doubles2);
 
-		long[] longArray = new long[]{(long) 23424, (long) 434235};
+		int[] intArray = new int[]{23424, 434235};
+
+		HashMap<String, File> relationFiles = new HashMap<>();
+		try {
+			File dataFile1 = initializeAndGetFile("friend");
+			File dataFile2 = initializeAndGetFile("age");
+
+			relationFiles.put("friend", dataFile1);
+			relationFiles.put("age", dataFile2);
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		}
 
 		if(version1 instanceof ModelVersion && version2 instanceof ModelVersion) {
-			List<ModelVersion> modelVersions = List.of((ModelVersion) version1, (ModelVersion) version2);
+			List<Version> modelVersions = List.of(version1, version2);
 
 			try {
 				File dataFile = initializeAndGetFile("data");
-				modelSerializer.write(modelVersions, model.getStore(), dataFile, doubleArrayList, longArray);
-				List<ModelVersion>  modelVersions2 = modelSerializer.read(model.getStore(), dataFile);
+				modelSerializer.write(modelVersions, model.getStore(), dataFile, relationFiles, doubleArrayList,
+						intArray);
+				List<ModelVersion>  modelVersions2 = modelSerializer.read(model.getStore(), dataFile, relationFiles);
 				assertEquals(compareModels(modelVersions, modelVersions2, model.getStore()), "Models are the same.");
 			} catch (IOException e) {
 				throw new RuntimeException(e);
@@ -66,13 +113,13 @@ public class ModelSerializerTest {
 		}
 	}
 
-	String compareModels(List<ModelVersion>  modelVersions1, List<ModelVersion>  modelVersions2,
+	String compareModels(List<Version>  modelVersions1, List<ModelVersion>  modelVersions2,
 						  ModelStore modelStore){
 		var symbols = modelStore.getSymbols();
 		if (modelVersions1.size() != modelVersions2.size()) return "The size of the models are different.";
 		else{
 			for(int i = 0; i < modelVersions1.size(); i++){
-				ModelVersion modelVersion1 = modelVersions1.get(i);
+				ModelVersion modelVersion1 = (ModelVersion) modelVersions1.get(i);
 				ModelVersion modelVersion2 = modelVersions2.get(i);
 				for(int j = 0; j < symbols.size(); j++){
 					MapTransaction version1 = (MapTransaction) ModelVersion.getInternalVersion(modelVersion1,j);

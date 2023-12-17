@@ -56,6 +56,8 @@ public class  VersionListSerializer{
 	public void write(List<Version> versions, DataOutputStream fileDataStream) throws IOException {
 		if (versions.get(0) instanceof MapTransaction<?, ?>) {
 			if (((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getKey() instanceof Tuple){
+
+
 				//Writing out the arity of the keys in the versions
 				int arity = ((Tuple) ((MapTransaction<?, ?>) versions.get(0)).deltas()[0].getKey()).getSize();
 				fileDataStream.writeInt(arity);
@@ -151,7 +153,7 @@ public class  VersionListSerializer{
 		//If the old value not a null then writing out that information and the value itself
 		else {
 			fileDataStream.writeBoolean(false);
-			strategy.writeValue(fileDataStream, delta.getOldValue());
+			if(strategy != null) strategy.writeValue(fileDataStream, delta.getOldValue());
 		}
 
 		//If the old value is null then writing out that information instead of the value
@@ -161,7 +163,7 @@ public class  VersionListSerializer{
 		//If the new value not a null then writing out that information and the value itself
 		else {
 			fileDataStream.writeBoolean(false);
-			strategy.writeValue(fileDataStream, delta.getNewValue());
+			if(strategy != null) strategy.writeValue(fileDataStream, delta.getNewValue());
 		}
 	}
 

@@ -6,26 +6,32 @@
 package tools.refinery.store.dse.transition.statespace.internal;
 
 import org.eclipse.collections.api.factory.primitive.IntSets;
+import org.eclipse.collections.api.factory.primitive.ObjectIntMaps;
+import org.eclipse.collections.api.map.primitive.MutableObjectIntMap;
 import org.eclipse.collections.api.set.primitive.MutableIntSet;
 import tools.refinery.store.dse.transition.VersionWithObjectiveValue;
 import tools.refinery.store.dse.transition.statespace.EquivalenceClassStore;
 import tools.refinery.store.statecoding.StateCoderResult;
 import tools.refinery.store.statecoding.StateCoderStoreAdapter;
 
-public abstract class FastEquivalenceClassStore extends AbstractEquivalenceClassStore implements EquivalenceClassStore {
-
+public abstract class FastMapBasedEquivalenceClassStore extends AbstractEquivalenceClassStore implements EquivalenceClassStore {
 	private final MutableIntSet codes = IntSets.mutable.empty();
+	private final MutableObjectIntMap<VersionWithObjectiveValue> version2CodeMap = ObjectIntMaps.mutable.empty();
 
-	protected FastEquivalenceClassStore(StateCoderStoreAdapter stateCoderStoreAdapter) {
+	protected FastMapBasedEquivalenceClassStore(StateCoderStoreAdapter stateCoderStoreAdapter) {
 		super(stateCoderStoreAdapter);
 	}
 
 	@Override
 	protected synchronized boolean tryToAdd(StateCoderResult stateCoderResult, VersionWithObjectiveValue newVersion,
-								int[] emptyActivations, boolean accept) {
-		return this.codes.add(stateCoderResult.modelCode());
+											int[] emptyActivations, boolean accept) {
+		int code = stateCoderResult.modelCode();
+		boolean isNew = this.codes.add(code);
+		this.version2CodeMap.put(newVersion, code);
+		return isNew;
 	}
 
+	@Override
 	public synchronized boolean tryToAdd(StateCoderResult stateCoderResult) {
 		return this.codes.add(stateCoderResult.modelCode());
 	}
@@ -35,8 +41,8 @@ public abstract class FastEquivalenceClassStore extends AbstractEquivalenceClass
 		throw new IllegalArgumentException("This equivalence storage is not prepared to resolve symmetries!");
 	}
 
+	@Override
 	public int getCode(VersionWithObjectiveValue version) {
-		throw new UnsupportedOperationException();
+		return version2CodeMap.get(version);
 	}
-
 }

@@ -6,6 +6,7 @@
 package tools.refinery.store.dse.strategy;
 
 import tools.refinery.store.model.Model;
+import tools.refinery.store.model.ModelSerializer;
 
 import java.util.Random;
 
@@ -27,6 +28,10 @@ public class BestFirstExplorer extends BestFirstWorker {
 		model.checkCancelled();
 		return !hasEnoughSolution();
 	}
+
+	int steps = 0;
+
+	public static int stepLimit = 100;
 
 	public void explore() {
 		var lastBest = submit().newVersion();
@@ -51,6 +56,67 @@ public class BestFirstExplorer extends BestFirstWorker {
 						restoreToLast();
 					} else {
 						var newVisit = newSubmit.newVersion();
+
+					/*	steps++;
+						if(steps == stepLimit) {
+							//System.out.println("Save model");
+							//macro benchmark (nem micro)
+							long start = System.nanoTime();
+							this.storeManager.saveStates();
+							System.out.print(System.nanoTime()-start + ";");
+							return;
+						}*/
+
+						int compareResult = compare(lastBest, newVisit);
+						if (compareResult >= 0)  {
+							lastBest = newVisit;
+						} else {
+							lastBest = null;
+						}
+						break;
+					}
+				} else {
+					lastBest = null;
+					break;
+				}
+			}
+		}
+	}
+
+	public void explore(ModelSerializer modelSerializer) {
+		var lastBest = submit().newVersion();
+		while (shouldRun()) {
+			if (lastBest == null) {
+				if (random.nextInt(10) == 0) {
+					lastBest = restoreToRandom(random);
+				} else {
+					lastBest = restoreToBest();
+				}
+				if (lastBest == null) {
+					return;
+				}
+			}
+			boolean tryActivation = true;
+			while (tryActivation && shouldRun()) {
+				var randomVisitResult = this.visitRandomUnvisited(random);
+				tryActivation = randomVisitResult.shouldRetry();
+				var newSubmit = randomVisitResult.submitResult();
+				if (newSubmit != null) {
+					if (!newSubmit.include()) {
+						restoreToLast();
+					} else {
+						var newVisit = newSubmit.newVersion();
+
+						steps++;
+						if(steps == stepLimit) {
+							//System.out.println("Save model");
+							//macro benchmark (nem micro)
+							long start = System.nanoTime();
+							this.storeManager.saveStates(modelSerializer);
+							System.out.print(System.nanoTime()-start + ";");
+							return;
+						}
+
 						int compareResult = compare(lastBest, newVisit);
 						if (compareResult >= 0)  {
 							lastBest = newVisit;

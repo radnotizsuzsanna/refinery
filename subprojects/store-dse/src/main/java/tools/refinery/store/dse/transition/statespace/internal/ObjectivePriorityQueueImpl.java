@@ -10,10 +10,7 @@ import tools.refinery.store.dse.transition.VersionWithObjectiveValue;
 import tools.refinery.store.dse.transition.objectives.Objective;
 import tools.refinery.store.dse.transition.statespace.ObjectivePriorityQueue;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.PriorityQueue;
-import java.util.Random;
+import java.util.*;
 
 public class ObjectivePriorityQueueImpl implements ObjectivePriorityQueue {
 	public static final Comparator<VersionWithObjectiveValue> c1 = (o1, o2) -> Double.compare(
@@ -64,5 +61,9 @@ public class ObjectivePriorityQueueImpl implements ObjectivePriorityQueue {
 			}
 		}
 		throw new IllegalStateException("The priority queue is inconsistent!");
+	}
+
+	public Queue<VersionWithObjectiveValue> getAll() {
+		return priorityQueue;
 	}
 }

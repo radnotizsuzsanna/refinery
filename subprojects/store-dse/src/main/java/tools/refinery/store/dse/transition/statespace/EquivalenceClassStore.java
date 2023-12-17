@@ -14,4 +14,5 @@ public interface EquivalenceClassStore {
 	boolean hasUnresolvedSymmetry();
 	void resolveOneSymmetry();
 	int getNumberOfUnresolvedSymmetries();
+	public int getCode(VersionWithObjectiveValue version);
 }
